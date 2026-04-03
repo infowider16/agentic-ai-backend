@@ -1,0 +1,26 @@
+{
+  "name": "agenticai-backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/infowider16/agentic-ai-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/infowider16/agentic-ai-backend/issues"
+  },
+  "homepage": "https://github.com/infowider16/agentic-ai-backend#readme",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "mysql2": "^3.20.0"
+  }
+}
