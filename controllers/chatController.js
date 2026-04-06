@@ -9,7 +9,7 @@ async function postChat(req, res) {
   }
 
   try {
-    const agent = await Agent.findById(agentId);
+    const agent = await Agent.findByAgentId(agentId);
 
     if (!agent) {
       return res.status(404).json({ error: 'Agent not found' });
@@ -21,7 +21,7 @@ async function postChat(req, res) {
     });
 
     return res.json({
-      agent_id: agent.id,
+      agent_id: agent.agent_id,
       agent_name: agent.agent_name,
       reply
     });

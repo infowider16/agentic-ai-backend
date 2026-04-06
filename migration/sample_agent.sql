@@ -1,5 +1,4 @@
--- Sample agent entry for testing
-INSERT INTO agents (id, agent_name, website_url, api_key, knowledge_base, script_id)
+INSERT INTO agents (agent_id, agent_name, website_url, api_key, knowledge_base, script_id)
 VALUES (
   'AGENT_123',
   'Customer Support',
