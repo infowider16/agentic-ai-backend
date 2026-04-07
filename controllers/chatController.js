@@ -15,7 +15,7 @@ async function postChat(req, res) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    const reply = buildChatReply({
+    const reply = await buildChatReply({
       agent,
       message
     });
@@ -27,7 +27,7 @@ async function postChat(req, res) {
     });
   } catch (error) {
     console.error('Chat controller error:', error.message);
-    return res.status(500).json({ error: 'Server error' });
+    return res.status(error.statusCode || 500).json({ error: error.message || 'Server error' });
   }
 }
 

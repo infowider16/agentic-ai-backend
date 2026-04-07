@@ -1,5 +1,7 @@
 const crypto = require('crypto');
-const ENCRYPTION_KEY = process.env.ENCRYPTION_SECRET.padEnd(32, '0').slice(0, 32); // 32 bytes
+require('dotenv').config();
+
+const ENCRYPTION_KEY = String(process.env.ENCRYPTION_SECRET || '').padEnd(32, '0').slice(0, 32); // 32 bytes
 const IV_LENGTH = 16;
 
 function encrypt(text) {
