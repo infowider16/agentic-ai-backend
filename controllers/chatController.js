@@ -1,4 +1,4 @@
-const Agent = require('../models/Agent');
+const { getAgentContext } = require('../services/agentContextCache');
 const { buildChatReply } = require('../services/chatResponseService');
 
 async function postChat(req, res) {
@@ -9,21 +9,22 @@ async function postChat(req, res) {
   }
 
   try {
-    const agent = await Agent.findByAgentId(agentId);
+    const agentContext = await getAgentContext(agentId);
 
-    if (!agent) {
+    if (!agentContext) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
     const reply = await buildChatReply({
-      agent,
+      agentContext,
       message
     });
 
     return res.json({
-      agent_id: agent.agent_id,
-      agent_name: agent.agent_name,
-      reply
+      agent_id: agentContext.agent.agent_id,
+      agent_name: agentContext.agent.agent_name,
+      reply: reply.text,
+      reply_blocks: reply.blocks
     });
   } catch (error) {
     console.error('Chat controller error:', error.message);

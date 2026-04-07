@@ -1,50 +1,23 @@
 const OpenAI = require('openai');
 const { GoogleGenAI } = require('@google/genai');
-const { decrypt } = require('../utils/encrypt');
+const { buildAgentContext } = require('./agentContextCache');
+const {
+  OPENAI_DEFAULT_MODEL,
+  GEMINI_DEFAULT_MODEL
+} = require('./agentContextUtils');
 
-const OPENAI_DEFAULT_MODEL = 'gpt-4o-mini';
-const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || process.env.GEMINI_TEST_MODEL || 'gemini-2.0-flash';
+const MAX_REPLY_LINES = 3;
+const MAX_REPLY_CHARS = 280;
+const OPENAI_MAX_TOKENS = Number(process.env.OPENAI_CHAT_MAX_TOKENS || 120);
+const GEMINI_MAX_OUTPUT_TOKENS = Number(process.env.GEMINI_CHAT_MAX_OUTPUT_TOKENS || 120);
 
-function safeParseKnowledgeBase(knowledgeBase) {
-  if (!knowledgeBase) {
-    return {};
-  }
-
-  if (typeof knowledgeBase === 'object') {
-    return knowledgeBase;
-  }
-
-  try {
-    return JSON.parse(knowledgeBase);
-  } catch (error) {
-    return {};
-  }
-}
-
-function flattenKnowledgeBase(value, items, prefix = '') {
-  if (value === null || value === undefined) {
-    return;
-  }
-
-  if (Array.isArray(value)) {
-    value.forEach(function(entry, index) {
-      flattenKnowledgeBase(entry, items, prefix ? prefix + ' ' + (index + 1) : String(index + 1));
-    });
-    return;
-  }
-
-  if (typeof value === 'object') {
-    Object.keys(value).forEach(function(key) {
-      const nextPrefix = prefix ? prefix + ' ' + key : key;
-      flattenKnowledgeBase(value[key], items, nextPrefix);
-    });
-    return;
-  }
-
-  items.push({
-    key: String(prefix || 'info').toLowerCase(),
-    value: String(value)
-  });
+function sanitizeInlineText(text) {
+  return String(text || '')
+    .replace(/\*\*(.*?)\*\*/g, '$1')
+    .replace(/__(.*?)__/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^[-*•]\s+/g, '')
+    .trim();
 }
 
 function findKnowledgeMatch(entries, message) {
@@ -57,24 +30,10 @@ function findKnowledgeMatch(entries, message) {
 
 function buildFallbackReply(agent, entries) {
   if (entries.length > 0) {
-    return 'I am ' + agent.agent_name + ' for ' + agent.website_url + '. Here is something from the knowledge base: ' + entries[0].value;
+    return buildReplyPayload('Based on our info: ' + entries[0].value);
   }
 
-  return 'Hello, I am ' + agent.agent_name + ' for ' + agent.website_url + '. How can I help you?';
-}
-
-function buildKnowledgeContext(knowledgeBase) {
-  const serializedKnowledge = JSON.stringify(knowledgeBase, null, 2);
-
-  if (!serializedKnowledge || serializedKnowledge === '{}') {
-    return 'No knowledge base was provided.';
-  }
-
-  if (serializedKnowledge.length <= 12000) {
-    return serializedKnowledge;
-  }
-
-  return serializedKnowledge.slice(0, 12000) + '\n...\n[Knowledge base truncated]';
+  return buildReplyPayload('Hello, I am ' + agent.agent_name + '.\nHow can I help?');
 }
 
 function extractReplyText(value) {
@@ -103,90 +62,116 @@ function extractReplyText(value) {
   return '';
 }
 
-function getAgentApiKey(agent) {
-  if (!agent.api_key) {
+function truncateLine(line, maxChars) {
+  if (line.length <= maxChars) {
+    return line;
+  }
+
+  return line.slice(0, maxChars - 3).trim() + '...';
+}
+
+function formatReplyText(text) {
+  const normalized = String(text || '')
+    .replace(/\r/g, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/[ \t]+/g, ' ')
+    .trim();
+
+  if (!normalized) {
     return '';
   }
 
-  try {
-    return decrypt(agent.api_key);
-  } catch (error) {
-    return String(agent.api_key).trim();
+  const rawLines = normalized
+    .split('\n')
+    .map(function(line) {
+      return sanitizeInlineText(line);
+    })
+    .filter(Boolean);
+
+  let lines = rawLines;
+
+  if (rawLines.length <= 1) {
+    lines = normalized
+      .split(/(?<=[.!?])\s+/)
+      .map(function(line) {
+        return sanitizeInlineText(line);
+      })
+      .filter(Boolean);
   }
+
+  const limitedLines = lines.slice(0, MAX_REPLY_LINES);
+  const lineBudget = Math.max(60, Math.floor(MAX_REPLY_CHARS / Math.max(1, limitedLines.length)));
+  const formatted = limitedLines.map(function(line) {
+    return truncateLine(line, lineBudget);
+  }).join('\n');
+
+  return truncateLine(formatted, MAX_REPLY_CHARS);
 }
 
-function resolveModelConfig(agent, apiKey) {
-  const rawProvider = String(agent.provider_name || '').trim();
-  const normalizedProvider = rawProvider.toLowerCase();
-  const rawModel = String(agent.model_name || '').trim();
-  const normalizedModel = rawModel.toLowerCase();
-  const normalizedKey = String(apiKey || '').trim().toLowerCase();
+function isLikelyCallToAction(line) {
+  return /(contact|call|email|share|tell me|let me know|get started|reach out|send|book|discuss|budget|timeline|requirements|project)/i.test(line);
+}
 
-  if (normalizedProvider === 'openai') {
+function buildReplyBlocks(text) {
+  const formatted = formatReplyText(text);
+
+  if (!formatted) {
     return {
-      provider: 'openai',
-      model: rawModel || OPENAI_DEFAULT_MODEL
+      summary: '',
+      bullets: [],
+      cta: ''
     };
   }
 
-  if (normalizedProvider === 'gemini' || normalizedProvider === 'google') {
-    return {
-      provider: 'gemini',
-      model: rawModel || GEMINI_DEFAULT_MODEL
-    };
-  }
+  const lines = formatted
+    .split('\n')
+    .map(function(line) {
+      return sanitizeInlineText(line);
+    })
+    .filter(Boolean);
+  const summary = lines[0] || '';
+  const remaining = lines.slice(1);
+  let bullets = remaining;
+  let cta = '';
 
-  if (normalizedModel === 'openai' || normalizedModel === 'chatgpt') {
-    return {
-      provider: 'openai',
-      model: OPENAI_DEFAULT_MODEL
-    };
-  }
+  if (remaining.length > 1 || (remaining.length === 1 && isLikelyCallToAction(remaining[0]))) {
+    const lastLine = remaining[remaining.length - 1];
 
-  if (normalizedModel === 'gemini' || normalizedModel === 'google') {
-    return {
-      provider: 'gemini',
-      model: GEMINI_DEFAULT_MODEL
-    };
-  }
-
-  if (normalizedModel.includes('gemini')) {
-    return {
-      provider: 'gemini',
-      model: rawModel
-    };
-  }
-
-  if (
-    normalizedModel.includes('gpt') ||
-    normalizedModel.startsWith('o1') ||
-    normalizedModel.startsWith('o3') ||
-    normalizedModel.startsWith('text-embedding')
-  ) {
-    return {
-      provider: 'openai',
-      model: rawModel
-    };
-  }
-
-  if (normalizedKey.startsWith('aiza')) {
-    return {
-      provider: 'gemini',
-      model: rawModel || GEMINI_DEFAULT_MODEL
-    };
-  }
-
-  if (normalizedKey.startsWith('sk-')) {
-    return {
-      provider: 'openai',
-      model: rawModel || OPENAI_DEFAULT_MODEL
-    };
+    if (isLikelyCallToAction(lastLine) || remaining.length > 1) {
+      cta = lastLine;
+      bullets = remaining.slice(0, -1);
+    }
   }
 
   return {
-    provider: '',
-    model: rawModel
+    summary,
+    bullets: bullets.slice(0, 2),
+    cta
   };
+}
+
+function buildReplyPayload(text) {
+  const replyText = formatReplyText(text);
+
+  return {
+    text: replyText,
+    blocks: buildReplyBlocks(replyText)
+  };
+}
+
+function buildImmediateReply(agentContext, message) {
+  const agent = agentContext.agent;
+  const match = findKnowledgeMatch(agentContext.knowledgeEntries, message);
+
+  if (match) {
+    return buildReplyPayload(match.value);
+  }
+
+  if (/\b(hello|hi|hey|namaste)\b/i.test(message)) {
+    return buildReplyPayload('Hello, I am ' + agent.agent_name + '.\nHow can I help today?');
+  }
+
+  return null;
 }
 
 async function requestOpenAIReply(apiKey, model, systemPrompt, message) {
@@ -194,6 +179,7 @@ async function requestOpenAIReply(apiKey, model, systemPrompt, message) {
   const completion = await client.chat.completions.create({
     model,
     temperature: 0.2,
+    max_tokens: OPENAI_MAX_TOKENS,
     messages: [
       {
         role: 'system',
@@ -213,77 +199,69 @@ async function requestGeminiReply(apiKey, model, systemPrompt, message) {
   const client = new GoogleGenAI({ apiKey });
   const response = await client.models.generateContent({
     model,
-    contents: systemPrompt + '\n\nUser question: ' + message
+    contents: systemPrompt + '\n\nUser question: ' + message,
+    config: {
+      temperature: 0.2,
+      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS
+    }
   });
 
   return extractReplyText(response && response.text);
 }
 
-function buildSystemPrompt(agent, knowledgeBase) {
-  return [
-    'You are ' + agent.agent_name + ', the website assistant for ' + agent.website_url + '.',
-    'Use the provided knowledge base as the primary source of truth when answering.',
-    'If the answer is not available in the knowledge base, say you do not have that information instead of inventing facts.',
-    'Keep the answer concise, helpful, and suitable for website visitors.',
-    'Knowledge base:',
-    buildKnowledgeContext(knowledgeBase)
-  ].join('\n\n');
-}
-
-async function requestProviderReply(agent, knowledgeBase, message) {
-  const apiKey = getAgentApiKey(agent);
-
-  if (!apiKey) {
+async function requestProviderReply(agentContext, message) {
+  if (!agentContext.apiKey) {
     return '';
   }
 
-  const modelConfig = resolveModelConfig(agent, apiKey);
-  const systemPrompt = buildSystemPrompt(agent, knowledgeBase);
-
-  if (modelConfig.provider === 'openai') {
-    return requestOpenAIReply(apiKey, modelConfig.model || OPENAI_DEFAULT_MODEL, systemPrompt, message);
+  if (agentContext.modelConfig.provider === 'openai') {
+    return requestOpenAIReply(
+      agentContext.apiKey,
+      agentContext.modelConfig.model || OPENAI_DEFAULT_MODEL,
+      agentContext.systemPrompt,
+      message
+    );
   }
 
-  if (modelConfig.provider === 'gemini') {
-    return requestGeminiReply(apiKey, modelConfig.model || GEMINI_DEFAULT_MODEL, systemPrompt, message);
+  if (agentContext.modelConfig.provider === 'gemini') {
+    return requestGeminiReply(
+      agentContext.apiKey,
+      agentContext.modelConfig.model || GEMINI_DEFAULT_MODEL,
+      agentContext.systemPrompt,
+      message
+    );
   }
 
-  const error = new Error('Unsupported AI provider for model_name: ' + (agent.model_name || 'unknown'));
+  const error = new Error('Unsupported AI provider for model_name: ' + (agentContext.agent.model_name || 'unknown'));
   error.statusCode = 400;
   throw error;
 }
 
 async function buildChatReply(params) {
-  const agent = params.agent;
+  const agentContext = params.agentContext || buildAgentContext(params.agent);
+  const agent = agentContext.agent;
   const message = params.message || '';
-  const knowledgeBase = safeParseKnowledgeBase(agent.knowledge_base);
-  const knowledgeEntries = [];
+  const immediateReply = buildImmediateReply(agentContext, message);
 
-  flattenKnowledgeBase(knowledgeBase, knowledgeEntries);
+  if (immediateReply) {
+    return immediateReply;
+  }
 
   try {
-    const providerReply = await requestProviderReply(agent, knowledgeBase, message);
+    const providerReply = await requestProviderReply(agentContext, message);
 
     if (providerReply) {
-      return providerReply;
+      return buildReplyPayload(providerReply);
     }
   } catch (error) {
     console.error('AI provider request failed:', error.message);
   }
 
-  const match = findKnowledgeMatch(knowledgeEntries, message);
-
-  if (match) {
-    return 'According to our knowledge base, ' + match.value;
-  }
-
-  if (/\b(hello|hi|hey|namaste)\b/i.test(message)) {
-    return 'Hello, I am ' + agent.agent_name + '. How can I help you today?';
-  }
-
-  return buildFallbackReply(agent, knowledgeEntries);
+  return buildFallbackReply(agent, agentContext.knowledgeEntries);
 }
 
 module.exports = {
-  buildChatReply
+  buildChatReply,
+  buildReplyBlocks,
+  formatReplyText
 };
