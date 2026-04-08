@@ -6,11 +6,6 @@ const {
   GEMINI_DEFAULT_MODEL
 } = require('./agentContextUtils');
 
-const MAX_REPLY_LINES = 3;
-const MAX_REPLY_CHARS = 280;
-const OPENAI_MAX_TOKENS = Number(process.env.OPENAI_CHAT_MAX_TOKENS || 120);
-const GEMINI_MAX_OUTPUT_TOKENS = Number(process.env.GEMINI_CHAT_MAX_OUTPUT_TOKENS || 120);
-
 function sanitizeInlineText(text) {
   return String(text || '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -62,14 +57,6 @@ function extractReplyText(value) {
   return '';
 }
 
-function truncateLine(line, maxChars) {
-  if (line.length <= maxChars) {
-    return line;
-  }
-
-  return line.slice(0, maxChars - 3).trim() + '...';
-}
-
 function formatReplyText(text) {
   const normalized = String(text || '')
     .replace(/\r/g, '')
@@ -88,24 +75,17 @@ function formatReplyText(text) {
     })
     .filter(Boolean);
 
-  let lines = rawLines;
-
-  if (rawLines.length <= 1) {
-    lines = normalized
-      .split(/(?<=[.!?])\s+/)
-      .map(function(line) {
-        return sanitizeInlineText(line);
-      })
-      .filter(Boolean);
+  if (rawLines.length > 1) {
+    return rawLines.join('\n');
   }
 
-  const limitedLines = lines.slice(0, MAX_REPLY_LINES);
-  const lineBudget = Math.max(60, Math.floor(MAX_REPLY_CHARS / Math.max(1, limitedLines.length)));
-  const formatted = limitedLines.map(function(line) {
-    return truncateLine(line, lineBudget);
-  }).join('\n');
-
-  return truncateLine(formatted, MAX_REPLY_CHARS);
+  return normalized
+    .split(/(?<=[.!?])\s+/)
+    .map(function(line) {
+      return sanitizeInlineText(line);
+    })
+    .filter(Boolean)
+    .join('\n');
 }
 
 function isLikelyCallToAction(line) {
@@ -134,18 +114,15 @@ function buildReplyBlocks(text) {
   let bullets = remaining;
   let cta = '';
 
-  if (remaining.length > 1 || (remaining.length === 1 && isLikelyCallToAction(remaining[0]))) {
+  if (remaining.length && isLikelyCallToAction(remaining[remaining.length - 1])) {
     const lastLine = remaining[remaining.length - 1];
-
-    if (isLikelyCallToAction(lastLine) || remaining.length > 1) {
-      cta = lastLine;
-      bullets = remaining.slice(0, -1);
-    }
+    cta = lastLine;
+    bullets = remaining.slice(0, -1);
   }
 
   return {
     summary,
-    bullets: bullets.slice(0, 2),
+    bullets,
     cta
   };
 }
@@ -179,7 +156,6 @@ async function requestOpenAIReply(apiKey, model, systemPrompt, message) {
   const completion = await client.chat.completions.create({
     model,
     temperature: 0.2,
-    max_tokens: OPENAI_MAX_TOKENS,
     messages: [
       {
         role: 'system',
@@ -201,8 +177,7 @@ async function requestGeminiReply(apiKey, model, systemPrompt, message) {
     model,
     contents: systemPrompt + '\n\nUser question: ' + message,
     config: {
-      temperature: 0.2,
-      maxOutputTokens: GEMINI_MAX_OUTPUT_TOKENS
+      temperature: 0.2
     }
   });
 

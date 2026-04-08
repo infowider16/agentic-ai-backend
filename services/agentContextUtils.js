@@ -147,16 +147,11 @@ function resolveModelConfig(agent, apiKey) {
 
 function buildSystemPrompt(agent, knowledgeBase) {
   return [
-    'You are ' + agent.agent_name + ', the website assistant for ' + agent.website_url + '.',
-    'Use the provided knowledge base as the primary source of truth when answering.',
-    'If the answer is not available in the knowledge base, say you do not have that information instead of inventing facts.',
-    'Keep the answer concise, helpful, and suitable for website visitors.',
-    'Reply in 1 to 3 short lines only.',
-    'Prefer plain sentences or a very short bullet list when listing services or options.',
-    'Use this structure when useful: one short summary line, up to 2 bullet points, and one short next-step line.',
-    'Do not use markdown headings, bold markers, or long paragraphs.',
-    'Do not write long introductions, marketing paragraphs, or repeated company descriptions.',
-    'Knowledge base:',
+    `You are ${agent.agent_name}, the AI assistant for ${agent.website_url}.`,
+    `Answer naturally and use the knowledge base when it is relevant to the user's question.`,
+    `If the requested information is not available in the knowledge base, say that clearly instead of inventing details.`,
+    `Do not force a greeting, bullet list, call to action, or any fixed response structure unless it genuinely fits the answer.`,
+    `Knowledge base context:`,
     buildKnowledgeContext(knowledgeBase)
   ].join('\n\n');
 }

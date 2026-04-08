@@ -19,6 +19,10 @@
       return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M3.4 20.4 20.85 12 3.4 3.6v6.54l12.2 1.86-12.2 1.86v6.54Z"/></svg>';
     }
 
+    if (type === 'sparkle') {
+      return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 3.25c.28 0 .52.18.6.45l1.09 3.66a2.2 2.2 0 0 0 1.46 1.46l3.66 1.09a.63.63 0 0 1 0 1.2l-3.66 1.09a2.2 2.2 0 0 0-1.46 1.46l-1.09 3.66a.63.63 0 0 1-1.2 0l-1.09-3.66a2.2 2.2 0 0 0-1.46-1.46L5.19 11.1a.63.63 0 0 1 0-1.2l3.66-1.09a2.2 2.2 0 0 0 1.46-1.46l1.09-3.66c.08-.27.32-.45.6-.45Z"/></svg>';
+    }
+
     if (type === 'plus') {
       return '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M19 11H13V5h-2v6H5v2h6v6h2v-6h6v-2Z"/></svg>';
     }
@@ -34,43 +38,44 @@
     const style = document.createElement('style');
     style.innerHTML = `
       #agenticai-chat-bubble { position: fixed; bottom: 24px; right: 24px; z-index: 9999; }
-      #agenticai-chat-bubble button { display:flex;align-items:center;justify-content:center;background:#3559e0;color:#fff;border:none;border-radius:18px;width:60px;height:60px;cursor:pointer;box-shadow:0 18px 40px rgba(34,57,126,0.28); transition:transform 0.2s ease, box-shadow 0.2s ease; }
-      #agenticai-chat-bubble button:hover { transform:translateY(-1px); box-shadow:0 22px 44px rgba(34,57,126,0.32); }
+      #agenticai-chat-bubble button { display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);color:#fff;border:none;border-radius:20px;width:60px;height:60px;cursor:pointer;box-shadow:0 18px 40px rgba(92,76,198,0.24); transition:transform 0.2s ease, box-shadow 0.2s ease; }
+      #agenticai-chat-bubble button:hover { transform:translateY(-1px); box-shadow:0 22px 44px rgba(92,76,198,0.3); }
       #agenticai-chat-bubble svg { width:28px;height:28px;display:block; }
-      #agenticai-chat-box { display: none; position: fixed; bottom: 100px; right: 24px; width: 360px; max-width: calc(100vw - 32px); background: #ffffff; border-radius: 20px; border: 1px solid rgba(131,147,182,0.18); box-shadow: 0 24px 60px rgba(16,24,40,0.18); overflow: hidden; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; z-index: 9999; }
-      #agenticai-chat-header { display:flex; align-items:center; justify-content:space-between; gap:12px; padding: 16px 18px; background: linear-gradient(135deg, #2747c7 0%, #3559e0 100%); color: #fff; }
-      #agenticai-chat-header-main { display:flex; align-items:center; gap:12px; min-width:0; }
-      #agenticai-chat-avatar { display:flex; align-items:center; justify-content:center; width:40px; height:40px; border-radius:14px; background:rgba(255,255,255,0.18); color:#fff; flex-shrink:0; }
-      #agenticai-chat-avatar svg { width:22px; height:22px; }
-      #agenticai-chat-title-wrap { min-width:0; }
-      #agenticai-chat-title { display:flex; align-items:center; gap:8px; font-size:15px; font-weight:600; letter-spacing:0.01em; }
-      #agenticai-chat-status { display:flex; align-items:center; gap:6px; margin-top:3px; font-size:12px; font-weight:500; color:rgba(255,255,255,0.82); }
-      #agenticai-chat-status-dot { width:8px; height:8px; border-radius:999px; background:#35d07f; box-shadow:0 0 0 4px rgba(53,208,127,0.16); }
-      #agenticai-chat-close { display:flex; align-items:center; justify-content:center; width:34px; height:34px; border:none; border-radius:12px; background:rgba(255,255,255,0.14); color:#fff; cursor:pointer; flex-shrink:0; }
-      #agenticai-chat-close svg { width:18px; height:18px; }
-      #agenticai-chat-messages { height: 280px; overflow-y: auto; padding: 18px 16px 12px; background: linear-gradient(180deg, #f8faff 0%, #f3f5fa 100%); }
+      #agenticai-chat-box { display: none; position: fixed; bottom: 100px; right: 24px; width: 360px; max-width: calc(100vw - 32px); background: #ffffff; border-radius: 24px; border: 1px solid rgba(148,163,184,0.16); box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08), 0 24px 60px rgba(30,41,59,0.08); overflow: hidden; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif; z-index: 9999; flex-direction: column; }
+      #agenticai-chat-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; padding: 18px 18px 24px; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; }
+      #agenticai-chat-header-main { display:flex; align-items:center; gap:14px; min-width:0; }
+      #agenticai-chat-avatar-shell { display:flex; align-items:center; justify-content:center; width:56px; height:56px; border-radius:999px; background:rgba(255,255,255,0.18); box-shadow:0 14px 30px rgba(6,25,84,0.2); flex-shrink:0; transform: translateY(12px); }
+      #agenticai-chat-avatar { display:flex; align-items:center; justify-content:center; width:46px; height:46px; border-radius:999px; background:#ffffff; color:#5b4ee8; }
+      #agenticai-chat-avatar svg { width:24px; height:24px; }
+      #agenticai-chat-title-wrap { display:flex; align-items:center; min-width:0; min-height:56px; transform: translateY(12px); }
+      #agenticai-chat-title { display:flex; align-items:center; gap:8px; margin-top:0; font-size:18px; font-weight:700; letter-spacing:0.01em; }
+      #agenticai-chat-close { display:flex; align-items:center; justify-content:center; width:24px; height:24px; margin-top:4px; border:none; padding:0; background:transparent; color:rgba(255,255,255,0.78); cursor:pointer; flex-shrink:0; }
+      #agenticai-chat-close svg { width:16px; height:16px; }
+      #agenticai-chat-messages { display:flex; flex-direction:column; height: 300px; overflow-y: auto; padding: 22px 16px 10px; background-color:#F8FAFC; background-image: radial-gradient(rgba(226, 232, 240, 0.95) 1px, transparent 1px), linear-gradient(180deg, #F8FAFC 0%, #F4F7FB 100%); background-size: 16px 16px, 100% 100%; background-position: 0 0, 0 0; }
       #agenticai-chat-messages::-webkit-scrollbar { width: 8px; }
       #agenticai-chat-messages::-webkit-scrollbar-track { background: transparent; }
       #agenticai-chat-messages::-webkit-scrollbar-thumb { background: #c9d1e3; border-radius: 999px; }
       #agenticai-chat-messages { scrollbar-width: thin; scrollbar-color: #c9d1e3 transparent; }
-      #agenticai-chat-input-shell { padding: 12px 14px 10px; background:#fff; border-top: 1px solid #e7ebf4; }
-      #agenticai-chat-input-row { display: flex; align-items:center; gap:10px; padding: 8px; border: 1px solid #dbe1ee; border-radius: 16px; background:#fbfcff; box-shadow: inset 0 1px 0 rgba(255,255,255,0.6); }
+      #agenticai-chat-input-shell { padding: 10px 14px 14px; background: linear-gradient(180deg, rgba(248,250,252,0.45) 0%, #F8FAFC 32%, #F8FAFC 100%); }
+      #agenticai-chat-input-row { display: flex; align-items:center; gap:10px; padding: 8px 10px; border: 1px solid #F1F5F9; border-radius: 18px; background:#ffffff; box-shadow: 0 8px 18px rgba(15,23,42,0.05); }
       .agenticai-chat-icon-button { display:flex; align-items:center; justify-content:center; width:38px; height:38px; border:none; border-radius:12px; background:transparent; color:#6c7894; cursor:pointer; flex-shrink:0; }
       .agenticai-chat-icon-button svg { width:20px; height:20px; }
-      #agenticai-chat-input { flex: 1; border: none; padding: 10px 4px; font-size: 14px; line-height:1.4; background: transparent; color:#17212b; }
+      #agenticai-chat-input { flex: 1; border: none; padding: 11px 4px; font-size: 14px; line-height:1.4; background: transparent; color:#17212b; }
       #agenticai-chat-input::placeholder { color:#95a0b8; }
       #agenticai-chat-input:focus { outline: none; }
-      #agenticai-chat-send { background: #3559e0; color: #fff; border: none; border-radius:12px; width: 42px; height: 42px; cursor: pointer; flex-shrink:0; box-shadow:0 10px 24px rgba(53,89,224,0.24); }
+      #agenticai-chat-send { display:flex; align-items:center; justify-content:center; background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; border: none; border-radius:999px; width: 40px; height: 40px; cursor: pointer; flex-shrink:0; box-shadow:0 8px 18px rgba(92,76,198,0.18); }
       #agenticai-chat-send svg { width:18px; height:18px; }
       #agenticai-chat-powered { margin-top: 10px; text-align:center; font-size:11px; color:#8a94aa; letter-spacing:0.01em; }
       .agenticai-chat-message { margin-bottom: 14px; line-height: 1.6; }
       .agenticai-chat-message span { white-space: pre-line; }
-      .agenticai-chat-bubble-row { display: flex; }
+      .agenticai-chat-bubble-row { display: flex; align-items: flex-end; gap: 10px; }
       .agenticai-chat-bubble-row--user { justify-content: flex-end; }
       .agenticai-chat-bubble-row--agent { justify-content: flex-start; }
-      .agenticai-chat-bubble-body { max-width: 86%; padding: 14px 16px; border-radius: 16px; background: #ffffff; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
-      .agenticai-chat-bubble-row--user .agenticai-chat-bubble-body { background: #3559e0; color: #fff; border-bottom-right-radius: 6px; }
-      .agenticai-chat-bubble-row--agent .agenticai-chat-bubble-body { background: #f4f4f6; color: #17212b; border-bottom-left-radius: 6px; }
+      .agenticai-chat-message-avatar { display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px; background:#ffffff; color:#5b4ee8; box-shadow:0 8px 18px rgba(15,23,42,0.08); flex-shrink:0; }
+      .agenticai-chat-message-avatar svg { width:16px; height:16px; }
+      .agenticai-chat-bubble-body { max-width: 82%; padding: 15px 19px; border-radius: 16px; background: #ffffff; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+      .agenticai-chat-bubble-row--user .agenticai-chat-bubble-body { background: linear-gradient(135deg, #6366F1 0%, #7C3AED 100%); color: #fff; border-radius: 16px 16px 4px 16px; }
+      .agenticai-chat-bubble-row--agent .agenticai-chat-bubble-body { background: rgba(255,255,255,0.94); color: #17212b; border-radius: 16px 16px 16px 4px; }
       .agenticai-chat-meta { margin-bottom: 7px; font-size: 11px; font-weight: 600; color: #6d7890; letter-spacing: 0.01em; }
       .agenticai-chat-bubble-row--user .agenticai-chat-meta { color: rgba(255,255,255,0.78); }
       .agenticai-chat-summary { white-space: pre-line; }
@@ -95,7 +100,7 @@
 
     const bubble = document.createElement('div');
     bubble.id = 'agenticai-chat-bubble';
-    bubble.innerHTML = '<button type="button" aria-label="Open chat"><svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2C6.48 2 2 6.03 2 11c0 2.4 1.05 4.58 2.76 6.2L4 22l5.14-2.57c.9.24 1.86.37 2.86.37 5.52 0 10-4.03 10-9s-4.48-8.8-10-8.8Zm-4 8.3a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Zm4 0a1.3 1.3 0 1 1 0-2.6 1.3 1.3 0 0 1 0 2.6Z"/></svg></button>';
+    bubble.innerHTML = '<button type="button" aria-label="Open chat">' + createIcon('sparkle') + '</button>';
     document.body.appendChild(bubble);
 
     const box = document.createElement('div');
@@ -103,31 +108,27 @@
     box.innerHTML = `
       <div id="agenticai-chat-header">
         <div id="agenticai-chat-header-main">
-          <div id="agenticai-chat-avatar">${createIcon('robot')}</div>
+          <div id="agenticai-chat-avatar-shell">
+            <div id="agenticai-chat-avatar">${createIcon('robot')}</div>
+          </div>
           <div id="agenticai-chat-title-wrap">
             <div id="agenticai-chat-title">${agentName}</div>
-            <div id="agenticai-chat-status">
-              <span id="agenticai-chat-status-dot"></span>
-              <span>Online now</span>
-            </div>
           </div>
         </div>
         <button id="agenticai-chat-close" type="button" aria-label="Close chat">${createIcon('close')}</button>
       </div>
       <div id="agenticai-chat-messages"></div>
       <div id="agenticai-chat-input-shell">
-        <div id="agenticai-chat-input-row">
-          <button class="agenticai-chat-icon-button" id="agenticai-chat-plus" type="button" aria-label="More options">${createIcon('plus')}</button>
-          <input id="agenticai-chat-input" type="text" placeholder="Type your message..." />
+        <div id="agenticai-chat-input-row">         
+          <input id="agenticai-chat-input" type="text" placeholder="Ask me anything..." />
           <button id="agenticai-chat-send" type="button" aria-label="Send message">${createIcon('send')}</button>
-        </div>
-        <div id="agenticai-chat-powered">Powered by ${brandName}</div>
+        </div>        
       </div>
     `;
     document.body.appendChild(box);
 
     bubble.onclick = function() {
-      box.style.display = box.style.display === 'block' ? 'none' : 'block';
+      box.style.display = box.style.display === 'flex' ? 'none' : 'flex';
     };
 
     document.getElementById('agenticai-chat-close').onclick = function() {
@@ -163,7 +164,7 @@
 
       div.id = 'agenticai-chat-typing';
       div.className = 'agenticai-chat-message agenticai-chat-message--typing';
-      label.textContent = agentName + ' is typing';
+      label.textContent = agentName + ' is thinking';
       dots.className = 'agenticai-chat-typing-dots';
       dots.innerHTML = '<span>.</span><span>.</span><span>.</span>';
       div.appendChild(label);
@@ -230,14 +231,22 @@
       const row = document.createElement('div');
       const bubble = document.createElement('div');
       const meta = document.createElement('div');
+      const avatar = document.createElement('div');
+      const normalizedText = String(text || '').trim();
 
       row.className = 'agenticai-chat-message agenticai-chat-bubble-row agenticai-chat-bubble-row--agent';
+      avatar.className = 'agenticai-chat-message-avatar';
+      avatar.innerHTML = createIcon('robot');
       bubble.className = 'agenticai-chat-bubble-body';
       meta.className = 'agenticai-chat-meta';
       meta.textContent = sender;
       bubble.appendChild(meta);
 
-      if (blocks && (blocks.summary || (blocks.bullets && blocks.bullets.length) || blocks.cta)) {
+      if (normalizedText) {
+        const body = document.createElement('span');
+        body.textContent = normalizedText;
+        bubble.appendChild(body);
+      } else if (blocks && (blocks.summary || (blocks.bullets && blocks.bullets.length) || blocks.cta)) {
         if (blocks.summary) {
           const summary = document.createElement('div');
           summary.className = 'agenticai-chat-summary';
@@ -262,12 +271,9 @@
           cta.textContent = blocks.cta;
           bubble.appendChild(cta);
         }
-      } else {
-        const body = document.createElement('span');
-        body.textContent = text;
-        bubble.appendChild(body);
       }
 
+      row.appendChild(avatar);
       row.appendChild(bubble);
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
