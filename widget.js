@@ -233,6 +233,9 @@
       const meta = document.createElement('div');
       const avatar = document.createElement('div');
       const normalizedText = String(text || '').trim();
+      const hasStructuredBlocks = Boolean(
+        blocks && (blocks.summary || (blocks.bullets && blocks.bullets.length) || blocks.cta)
+      );
 
       row.className = 'agenticai-chat-message agenticai-chat-bubble-row agenticai-chat-bubble-row--agent';
       avatar.className = 'agenticai-chat-message-avatar';
@@ -242,11 +245,7 @@
       meta.textContent = sender;
       bubble.appendChild(meta);
 
-      if (normalizedText) {
-        const body = document.createElement('span');
-        body.textContent = normalizedText;
-        bubble.appendChild(body);
-      } else if (blocks && (blocks.summary || (blocks.bullets && blocks.bullets.length) || blocks.cta)) {
+      if (hasStructuredBlocks) {
         if (blocks.summary) {
           const summary = document.createElement('div');
           summary.className = 'agenticai-chat-summary';
@@ -271,6 +270,10 @@
           cta.textContent = blocks.cta;
           bubble.appendChild(cta);
         }
+      } else if (normalizedText) {
+        const body = document.createElement('span');
+        body.textContent = normalizedText;
+        bubble.appendChild(body);
       }
 
       row.appendChild(avatar);

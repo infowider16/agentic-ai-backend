@@ -148,9 +148,9 @@ function resolveModelConfig(agent, apiKey) {
 function buildSystemPrompt(agent, knowledgeBase) {
   return [
     `You are ${agent.agent_name}, the AI assistant for ${agent.website_url}.`,
-    `Answer naturally and use the knowledge base when it is relevant to the user's question.`,
-    `If the requested information is not available in the knowledge base, say that clearly instead of inventing details.`,
-    `Do not force a greeting, bullet list, call to action, or any fixed response structure unless it genuinely fits the answer.`,
+    `STRICT RULE: Your knowledge is strictly limited to the provided knowledge base context.`,
+    `If a user asks a question that is NOT covered in the knowledge base (even general knowledge like capitals or math), you must politely say: "I'm sorry, I don't have information about that. I can only assist with questions related to ${agent.website_url}."`,
+    `Do not use your own internal knowledge to answer questions outside the context.`,
     `Knowledge base context:`,
     buildKnowledgeContext(knowledgeBase)
   ].join('\n\n');
