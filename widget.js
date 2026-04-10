@@ -5,6 +5,36 @@
   const apiBaseUrl = currentScript && currentScript.dataset.apiBaseUrl ? currentScript.dataset.apiBaseUrl : window.location.origin;
   const agentName = currentScript && currentScript.dataset.agentName ? currentScript.dataset.agentName : 'AI Agent';
   const brandName = currentScript && currentScript.dataset.brandName ? currentScript.dataset.brandName : 'AgenticAI';
+  const maxHistoryItems = 20;
+
+  function createSessionId() {
+    if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+      return window.crypto.randomUUID();
+    }
+
+    return 'session_' + Date.now() + '_' + Math.random().toString(36).slice(2, 10);
+  }
+
+  function getStorageKey() {
+    return 'agenticai:conversation:' + agentId;
+  }
+
+  function getConversationId() {
+    const storageKey = getStorageKey();
+    const storedValue = window.sessionStorage ? window.sessionStorage.getItem(storageKey) : '';
+
+    if (storedValue) {
+      return storedValue;
+    }
+
+    const nextValue = createSessionId();
+
+    if (window.sessionStorage) {
+      window.sessionStorage.setItem(storageKey, nextValue);
+    }
+
+    return nextValue;
+  }
 
   function createIcon(type) {
     if (type === 'robot') {
@@ -34,6 +64,10 @@
     if (!document.body || document.getElementById('agenticai-chat-bubble')) {
       return;
     }
+
+    const conversationId = getConversationId();
+    const sessionId = conversationId;
+    const conversationHistory = [];
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -173,6 +207,24 @@
       messages.scrollTop = messages.scrollHeight;
     }
 
+    function appendHistory(role, content) {
+      const normalizedRole = role === 'assistant' ? 'assistant' : 'user';
+      const normalizedContent = String(content || '').trim();
+
+      if (!normalizedContent) {
+        return;
+      }
+
+      conversationHistory.push({
+        role: normalizedRole,
+        content: normalizedContent
+      });
+
+      if (conversationHistory.length > maxHistoryItems) {
+        conversationHistory.splice(0, conversationHistory.length - maxHistoryItems);
+      }
+    }
+
     function sendMessage() {
       const input = document.getElementById('agenticai-chat-input');
       const msg = input.value.trim();
@@ -180,6 +232,7 @@
         return;
       }
 
+      appendHistory('user', msg);
       addMessage('You', msg);
       input.value = '';
       setPendingState(true);
@@ -188,14 +241,26 @@
       fetch(apiBaseUrl + '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ agent_id: agentId, message: msg })
+        body: JSON.stringify({
+          agent_id: agentId,
+          message: msg,
+          history: conversationHistory,
+          session_id: sessionId,
+          conversation_id: conversationId
+        })
       })
         .then(function(res) {
           return res.json();
         })
         .then(function(data) {
           removeTypingIndicator();
-          addAgentMessage(data.agent_name || agentName, data.reply || 'No reply', data.reply_blocks);
+          if (!data || !data.reply) {
+            addAgentMessage(agentName, 'Sorry, I could not process that right now.');
+            return;
+          }
+
+          appendHistory('assistant', data.reply);
+          addAgentMessage(data.agent_name || agentName, data.reply, data.reply_blocks);
         })
         .catch(function() {
           removeTypingIndicator();

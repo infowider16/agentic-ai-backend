@@ -6,6 +6,8 @@ const {
   GEMINI_DEFAULT_MODEL
 } = require('./agentContextUtils');
 
+const MAX_HISTORY_ITEMS = Number(process.env.CHAT_HISTORY_LIMIT || 20);
+
 function sanitizeInlineText(text) {
   return String(text || '')
     .replace(/\*\*(.*?)\*\*/g, '$1')
@@ -15,20 +17,173 @@ function sanitizeInlineText(text) {
     .trim();
 }
 
-function findKnowledgeMatch(entries, message) {
-  const normalizedMessage = message.toLowerCase();
-
-  return entries.find(function(entry) {
-    return normalizedMessage.includes(entry.key) || entry.value.toLowerCase().includes(normalizedMessage);
-  });
+function normalizeText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
-function buildFallbackReply(agent, entries) {
-  if (entries.length > 0) {
-    return buildReplyPayload('Based on our info: ' + entries[0].value);
+function getMeaningfulTokens(text) {
+  const stopWords = new Set([
+    'a', 'an', 'and', 'are', 'about', 'can', 'do', 'for', 'from', 'give', 'hello', 'help', 'hey',
+    'hi', 'i', 'is', 'it', 'know', 'me', 'means', 'more', 'need', 'of', 'on', 'please', 'service',
+    'services', 'tell', 'the', 'to', 'want', 'what', 'with', 'you', 'your'
+  ]);
+
+  return normalizeText(text)
+    .split(' ')
+    .filter(function(token) {
+      return token.length >= 3 && !stopWords.has(token);
+    });
+}
+
+function findKnowledgeMatch(entries, message) {
+  const normalizedMessage = normalizeText(message);
+  const messageTokens = getMeaningfulTokens(message);
+  let bestMatch = null;
+  let bestScore = 0;
+
+  entries.forEach(function(entry) {
+    const normalizedKey = normalizeText(entry.key);
+    const normalizedValue = normalizeText(entry.value);
+    let score = 0;
+
+    if (normalizedMessage && normalizedKey && normalizedMessage.includes(normalizedKey)) {
+      score += normalizedKey.split(' ').length + 3;
+    }
+
+    if (normalizedMessage.length >= 12 && normalizedValue.includes(normalizedMessage)) {
+      score += 4;
+    }
+
+    messageTokens.forEach(function(token) {
+      if (normalizedKey.split(' ').includes(token)) {
+        score += 2;
+      } else if (normalizedValue.includes(token)) {
+        score += 1;
+      }
+    });
+
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = entry;
+    }
+  });
+
+  return bestScore >= 2 ? bestMatch : null;
+}
+
+function isDirectKnowledgeMatch(match, message) {
+  const normalizedMessage = normalizeText(message);
+
+  if (!match || !normalizedMessage) {
+    return false;
   }
 
-  return buildReplyPayload('Hello, I am ' + agent.agent_name + '.\nHow can I help?');
+  const normalizedKey = normalizeText(match.key);
+  const normalizedValue = normalizeText(match.value);
+
+  if (normalizedKey && (normalizedKey === normalizedMessage || normalizedKey.includes(normalizedMessage))) {
+    return true;
+  }
+
+  if (normalizedMessage.length >= 12 && normalizedValue.includes(normalizedMessage)) {
+    return true;
+  }
+
+  return false;
+}
+
+function buildFallbackReply(message, match) {
+  if (isDirectKnowledgeMatch(match, message)) {
+    return buildReplyPayload(match.value);
+  }
+
+  if (/\b(hello|hi|hey|namaste|good morning|good afternoon|good evening)\b/i.test(message)) {
+    return buildReplyPayload('Sorry, I could not process that right now. Please try again in a moment.');
+  }
+
+  return buildReplyPayload('Sorry, I could not process that right now. Please try again in a moment.');
+}
+
+function normalizeHistoryEntries(history) {
+  if (!Array.isArray(history)) {
+    return [];
+  }
+
+  return history
+    .map(function(entry) {
+      if (!entry || typeof entry !== 'object') {
+        return null;
+      }
+
+      const role = entry.role === 'assistant' ? 'assistant' : entry.role === 'user' ? 'user' : '';
+      const content = String(entry.content || '').trim();
+
+      if (!role || !content) {
+        return null;
+      }
+
+      return {
+        role,
+        content
+      };
+    })
+    .filter(Boolean)
+    .slice(-MAX_HISTORY_ITEMS);
+}
+
+function appendCurrentMessage(history, message) {
+  const normalizedHistory = normalizeHistoryEntries(history);
+  const normalizedMessage = String(message || '').trim();
+
+  if (!normalizedMessage) {
+    return normalizedHistory;
+  }
+
+  const lastEntry = normalizedHistory[normalizedHistory.length - 1];
+
+  if (!lastEntry || lastEntry.role !== 'user' || lastEntry.content !== normalizedMessage) {
+    normalizedHistory.push({
+      role: 'user',
+      content: normalizedMessage
+    });
+  }
+
+  return normalizedHistory.slice(-MAX_HISTORY_ITEMS);
+}
+
+function buildOpenAIMessages(systemPrompt, history) {
+  const messages = [
+    {
+      role: 'system',
+      content: systemPrompt
+    }
+  ];
+
+  history.forEach(function(entry) {
+    messages.push({
+      role: entry.role,
+      content: entry.content
+    });
+  });
+
+  return messages;
+}
+
+function buildGeminiContents(history) {
+  return history.map(function(entry) {
+    return {
+      role: entry.role === 'assistant' ? 'model' : 'user',
+      parts: [
+        {
+          text: entry.content
+        }
+      ]
+    };
+  });
 }
 
 function extractReplyText(value) {
@@ -136,55 +291,36 @@ function buildReplyPayload(text) {
   };
 }
 
-function buildImmediateReply(agentContext, message) {
-  const agent = agentContext.agent;
-  const match = findKnowledgeMatch(agentContext.knowledgeEntries, message);
-
-  if (match) {
-    return buildReplyPayload(match.value);
-  }
-
-  if (/\b(hello|hi|hey|namaste)\b/i.test(message)) {
-    return buildReplyPayload('Hello, I am ' + agent.agent_name + '.\nHow can I help today?');
-  }
-
-  return null;
+function hasAvailableProvider(agentContext) {
+  return Boolean(agentContext.apiKey && agentContext.modelConfig && agentContext.modelConfig.provider);
 }
 
-async function requestOpenAIReply(apiKey, model, systemPrompt, message) {
+async function requestOpenAIReply(apiKey, model, systemPrompt, history) {
   const client = new OpenAI({ apiKey });
   const completion = await client.chat.completions.create({
     model,
     temperature: 0.2,
-    messages: [
-      {
-        role: 'system',
-        content: systemPrompt
-      },
-      {
-        role: 'user',
-        content: message
-      }
-    ]
+    messages: buildOpenAIMessages(systemPrompt, history)
   });
 
   return extractReplyText(completion.choices && completion.choices[0] && completion.choices[0].message && completion.choices[0].message.content);
 }
 
-async function requestGeminiReply(apiKey, model, systemPrompt, message) {
+async function requestGeminiReply(apiKey, model, systemPrompt, history) {
   const client = new GoogleGenAI({ apiKey });
   const response = await client.models.generateContent({
     model,
-    contents: systemPrompt + '\n\nUser question: ' + message,
+    contents: buildGeminiContents(history),
     config: {
-      temperature: 0.2
+      temperature: 0.2,
+      systemInstruction: systemPrompt
     }
   });
 
   return extractReplyText(response && response.text);
 }
 
-async function requestProviderReply(agentContext, message) {
+async function requestProviderReply(agentContext, history) {
   if (!agentContext.apiKey) {
     return '';
   }
@@ -194,7 +330,7 @@ async function requestProviderReply(agentContext, message) {
       agentContext.apiKey,
       agentContext.modelConfig.model || OPENAI_DEFAULT_MODEL,
       agentContext.systemPrompt,
-      message
+      history
     );
   }
 
@@ -203,7 +339,7 @@ async function requestProviderReply(agentContext, message) {
       agentContext.apiKey,
       agentContext.modelConfig.model || GEMINI_DEFAULT_MODEL,
       agentContext.systemPrompt,
-      message
+      history
     );
   }
 
@@ -214,25 +350,23 @@ async function requestProviderReply(agentContext, message) {
 
 async function buildChatReply(params) {
   const agentContext = params.agentContext || buildAgentContext(params.agent);
-  const agent = agentContext.agent;
   const message = params.message || '';
-  const immediateReply = buildImmediateReply(agentContext, message);
+  const history = appendCurrentMessage(params.history, message);
+  const knowledgeMatch = findKnowledgeMatch(agentContext.knowledgeEntries, message);
 
-  if (immediateReply) {
-    return immediateReply;
-  }
+  if (hasAvailableProvider(agentContext)) {
+    try {
+      const providerReply = await requestProviderReply(agentContext, history);
 
-  try {
-    const providerReply = await requestProviderReply(agentContext, message);
-
-    if (providerReply) {
-      return buildReplyPayload(providerReply);
+      if (providerReply) {
+        return buildReplyPayload(providerReply);
+      }
+    } catch (error) {
+      console.error('AI provider request failed:', error.message);
     }
-  } catch (error) {
-    console.error('AI provider request failed:', error.message);
   }
 
-  return buildFallbackReply(agent, agentContext.knowledgeEntries);
+  return buildFallbackReply(message, knowledgeMatch);
 }
 
 module.exports = {

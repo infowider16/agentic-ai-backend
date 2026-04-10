@@ -60,8 +60,19 @@ function buildKnowledgeContext(knowledgeBase) {
 }
 
 function getAgentApiKey(agent) {
+  const providerName = String(agent.provider_name || '').trim().toLowerCase();
+  const modelName = String(agent.model_name || '').trim().toLowerCase();
+
   if (!agent.api_key) {
-    return '';
+    if (providerName === 'gemini' || providerName === 'google' || modelName.includes('gemini')) {
+      return String(process.env.GEMINI_API_KEY || '').trim();
+    }
+
+    if (providerName === 'openai' || modelName.includes('gpt') || modelName.startsWith('o1') || modelName.startsWith('o3')) {
+      return String(process.env.OPENAI_API_KEY || '').trim();
+    }
+
+    return String(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
   }
 
   try {
@@ -148,9 +159,14 @@ function resolveModelConfig(agent, apiKey) {
 function buildSystemPrompt(agent, knowledgeBase) {
   return [
     `You are ${agent.agent_name}, the AI assistant for ${agent.website_url}.`,
-    `STRICT RULE: Your knowledge is strictly limited to the provided knowledge base context.`,
-    `If a user asks a question that is NOT covered in the knowledge base (even general knowledge like capitals or math), you must politely say: "I'm sorry, I don't have information about that. I can only assist with questions related to ${agent.website_url}."`,
-    `Do not use your own internal knowledge to answer questions outside the context.`,
+    `Your knowledge is strictly limited to the provided knowledge base context.`,
+    `Respond like a helpful human support assistant: be conversational, concise, and relevant to the user's message.`,
+    `If the user only greets you or starts the conversation casually, reply with a short greeting and ask what they need help with. Do not immediately dump company information.`,
+    `Use the conversation history provided with the request to keep continuity. Interpret short confirmations such as yes, no, okay, sure, or continue in the context of the assistant's immediately previous question, and do not restart the conversation unless the user clearly changes topic.`,
+    `If the user's request seems related to the business but is ambiguous, ask one short clarifying question before saying the topic is unavailable.`,
+    `If the answer exists in the knowledge base, answer naturally using only that context. Do not add facts that are not present.`,
+    `If a user asks something clearly outside the knowledge base or outside ${agent.website_url}, politely say: "I'm sorry, I don't have information about that. I can only assist with questions related to ${agent.website_url}."`,
+    `Do not use your own internal knowledge to answer outside the provided context.`,
     `Knowledge base context:`,
     buildKnowledgeContext(knowledgeBase)
   ].join('\n\n');
