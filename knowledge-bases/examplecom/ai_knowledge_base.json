@@ -1,0 +1,28 @@
+[
+  {
+    "id": "example-domain-001",
+    "content": "Example DomainThis domain is for use in documentation examples without needing permission. Avoid use in operations.",
+    "metadata": {
+      "source_url": "https://example.com/",
+      "domain": "example.com",
+      "page_title": "Example Domain",
+      "section_title": "Overview",
+      "content_type": "homepage",
+      "language": "en",
+      "keywords": [
+        "domainthis",
+        "domain",
+        "documentation",
+        "examples",
+        "needing",
+        "permission",
+        "avoid",
+        "operations"
+      ],
+      "summary": "Example DomainThis domain is for use in documentation examples without needing permission. Avoid use in operations.",
+      "timestamp": "2026-04-14T12:40:13.717Z",
+      "chunk_index": 1,
+      "chunk_total": 1
+    }
+  }
+]

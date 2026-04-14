@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const chatRoutes = require('./routes/chat');
+const knowledgeBaseRoutes = require('./routes/knowledgeBase');
 require('dotenv').config();
 
 const app = express();
@@ -10,6 +11,7 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 app.use('/api/chat', chatRoutes);
+app.use('/api/knowledge-base', knowledgeBaseRoutes);
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'test-widget.html'));
