@@ -243,8 +243,18 @@ function formatReplyText(text) {
     .join('\n');
 }
 
-function isLikelyCallToAction(line) {
-  return /(contact|call|email|share|tell me|let me know|get started|reach out|send|book|discuss|budget|timeline|requirements|project)/i.test(line);
+function extractLeadFormFlag(text) {
+  const marker = '[LEAD_FORM]';
+  const idx = String(text || '').indexOf(marker);
+
+  if (idx === -1) {
+    return { cleanText: String(text || ''), triggerLeadForm: false };
+  }
+
+  return {
+    cleanText: String(text || '').slice(0, idx).trim(),
+    triggerLeadForm: true
+  };
 }
 
 function buildReplyBlocks(text) {
@@ -265,29 +275,23 @@ function buildReplyBlocks(text) {
     })
     .filter(Boolean);
   const summary = lines[0] || '';
-  const remaining = lines.slice(1);
-  let bullets = remaining;
-  let cta = '';
-
-  if (remaining.length && isLikelyCallToAction(remaining[remaining.length - 1])) {
-    const lastLine = remaining[remaining.length - 1];
-    cta = lastLine;
-    bullets = remaining.slice(0, -1);
-  }
+  const bullets = lines.slice(1);
 
   return {
     summary,
     bullets,
-    cta
+    cta: ''
   };
 }
 
 function buildReplyPayload(text) {
-  const replyText = formatReplyText(text);
+  const { cleanText, triggerLeadForm } = extractLeadFormFlag(text);
+  const replyText = formatReplyText(cleanText);
 
   return {
     text: replyText,
-    blocks: buildReplyBlocks(replyText)
+    blocks: buildReplyBlocks(replyText),
+    trigger_lead_form: triggerLeadForm
   };
 }
 

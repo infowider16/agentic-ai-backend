@@ -68,6 +68,8 @@
     const conversationId = getConversationId();
     const sessionId = conversationId;
     const conversationHistory = [];
+    var leadFormShown = false;
+    var lastUserMessage = '';
 
     const style = document.createElement('style');
     style.innerHTML = `
@@ -116,6 +118,16 @@
       .agenticai-chat-list { margin: 8px 0 0; padding-left: 18px; }
       .agenticai-chat-list li { margin-bottom: 4px; }
       .agenticai-chat-cta { margin-top: 8px; font-weight: 600; }
+      .agenticai-lead-form-bubble { max-width: 92% !important; }
+      .agenticai-lead-form-title { font-size: 13px; color: #444f6b; margin-bottom: 10px; line-height: 1.5; }
+      .agenticai-lead-form { display: flex; flex-direction: column; gap: 8px; }
+      .agenticai-lead-input { width: 100%; box-sizing: border-box; border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 12px; font-size: 13px; color: #17212b; background: #f8fafc; outline: none; font-family: inherit; transition: border-color 0.15s; }
+      .agenticai-lead-input:focus { border-color: #6366F1; background: #fff; }
+      .agenticai-lead-textarea { resize: vertical; min-height: 60px; }
+      .agenticai-lead-submit { background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%); color: #fff; border: none; border-radius: 10px; padding: 10px 16px; font-size: 13px; font-weight: 600; cursor: pointer; margin-top: 2px; font-family: inherit; }
+      .agenticai-lead-submit:disabled { opacity: 0.65; cursor: not-allowed; }
+      .agenticai-lead-error { font-size: 12px; color: #dc2626; margin-top: 2px; display: none; }
+      .agenticai-lead-success { font-size: 14px; color: #16a34a; font-weight: 600; padding: 6px 0; }
       .agenticai-chat-message--typing { color: #666; font-style: italic; }
       .agenticai-chat-typing-dots { display: inline-flex; margin-left: 4px; }
       .agenticai-chat-typing-dots span { animation: agenticaiTypingBlink 1.2s infinite; display: inline-block; }
@@ -225,6 +237,152 @@
       }
     }
 
+    function shouldTriggerLeadForm(triggerFlag) {
+      return !leadFormShown && triggerFlag === true;
+    }
+
+    function showLeadForm(triggerReason, prefillQuestion) {
+      leadFormShown = true;
+
+      const messages = document.getElementById('agenticai-chat-messages');
+      const row = document.createElement('div');
+      row.className = 'agenticai-chat-message agenticai-chat-bubble-row agenticai-chat-bubble-row--agent';
+
+      const avatarEl = document.createElement('div');
+      avatarEl.className = 'agenticai-chat-message-avatar';
+      avatarEl.innerHTML = createIcon('robot');
+
+      const bubble = document.createElement('div');
+      bubble.className = 'agenticai-chat-bubble-body agenticai-lead-form-bubble';
+
+      const metaEl = document.createElement('div');
+      metaEl.className = 'agenticai-chat-meta';
+      metaEl.textContent = agentName;
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'agenticai-lead-form-title';
+      titleEl.textContent = 'Please fill in your details and we\'ll get back to you shortly.';
+
+      const formEl = document.createElement('div');
+      formEl.className = 'agenticai-lead-form';
+
+      const nameInput = document.createElement('input');
+      nameInput.className = 'agenticai-lead-input';
+      nameInput.type = 'text';
+      nameInput.placeholder = 'Full Name *';
+      nameInput.autocomplete = 'name';
+
+      const emailInput = document.createElement('input');
+      emailInput.className = 'agenticai-lead-input';
+      emailInput.type = 'email';
+      emailInput.placeholder = 'Work Email *';
+      emailInput.autocomplete = 'email';
+
+      const phoneInput = document.createElement('input');
+      phoneInput.className = 'agenticai-lead-input';
+      phoneInput.type = 'tel';
+      phoneInput.placeholder = 'Phone Number (optional)';
+      phoneInput.autocomplete = 'tel';
+
+      const questionInput = document.createElement('textarea');
+      questionInput.className = 'agenticai-lead-input agenticai-lead-textarea';
+      questionInput.placeholder = 'Your question *';
+      questionInput.rows = 3;
+      questionInput.value = String(prefillQuestion || '');
+
+      const errorEl = document.createElement('div');
+      errorEl.className = 'agenticai-lead-error';
+
+      const submitBtn = document.createElement('button');
+      submitBtn.className = 'agenticai-lead-submit';
+      submitBtn.type = 'button';
+      submitBtn.textContent = 'Submit';
+
+      formEl.appendChild(nameInput);
+      formEl.appendChild(emailInput);
+      formEl.appendChild(phoneInput);
+      formEl.appendChild(questionInput);
+      formEl.appendChild(errorEl);
+      formEl.appendChild(submitBtn);
+      bubble.appendChild(metaEl);
+      bubble.appendChild(titleEl);
+      bubble.appendChild(formEl);
+      row.appendChild(avatarEl);
+      row.appendChild(bubble);
+      messages.appendChild(row);
+      messages.scrollTop = messages.scrollHeight;
+
+      submitBtn.onclick = function() {
+        var name = nameInput.value.trim();
+        var email = emailInput.value.trim();
+        var phone = phoneInput.value.trim();
+        var question = questionInput.value.trim();
+        var emailRegex = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
+
+        if (!name || !email || !question) {
+          errorEl.textContent = 'Please fill in all required fields.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        if (!emailRegex.test(email)) {
+          errorEl.textContent = 'Please enter a valid email address.';
+          errorEl.style.display = 'block';
+          return;
+        }
+
+        errorEl.style.display = 'none';
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Sending...';
+
+        fetch(apiBaseUrl + '/api/leads', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: agentId,
+            full_name: name,
+            work_email: email,
+            phone_number: phone || null,
+            question: question,
+            trigger_reason: triggerReason || 'cta'
+          })
+        })
+          .then(function(res) {
+            return res.json();
+          })
+          .then(function(data) {
+            if (data && data.success) {
+              while (bubble.firstChild) {
+                bubble.removeChild(bubble.firstChild);
+              }
+
+              const successMeta = document.createElement('div');
+              successMeta.className = 'agenticai-chat-meta';
+              successMeta.textContent = agentName;
+
+              const successMsg = document.createElement('div');
+              successMsg.className = 'agenticai-lead-success';
+              successMsg.textContent = 'Thank you! Our team will reach out to you soon.';
+
+              bubble.appendChild(successMeta);
+              bubble.appendChild(successMsg);
+              messages.scrollTop = messages.scrollHeight;
+            } else {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Submit';
+              errorEl.textContent = (data && data.error) || 'Something went wrong. Please try again.';
+              errorEl.style.display = 'block';
+            }
+          })
+          .catch(function() {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Submit';
+            errorEl.textContent = 'Error connecting. Please try again.';
+            errorEl.style.display = 'block';
+          });
+      };
+    }
+
     function sendMessage() {
       const input = document.getElementById('agenticai-chat-input');
       const msg = input.value.trim();
@@ -232,6 +390,7 @@
         return;
       }
 
+      lastUserMessage = msg;
       appendHistory('user', msg);
       addMessage('You', msg);
       input.value = '';
@@ -261,6 +420,12 @@
 
           appendHistory('assistant', data.reply);
           addAgentMessage(data.agent_name || agentName, data.reply, data.reply_blocks);
+
+          if (shouldTriggerLeadForm(data.trigger_lead_form)) {
+            setTimeout(function() {
+              showLeadForm('cta', lastUserMessage);
+            }, 350);
+          }
         })
         .catch(function() {
           removeTypingIndicator();

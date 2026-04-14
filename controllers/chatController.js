@@ -63,6 +63,7 @@ async function postChat(req, res) {
       agent_name: agentContext.agent.agent_name,
       reply: reply.text,
       reply_blocks: reply.blocks,
+      trigger_lead_form: reply.trigger_lead_form || false,
       session_id: normalizeIdentifier(sessionId),
       conversation_id: normalizeIdentifier(conversationId)
     });
