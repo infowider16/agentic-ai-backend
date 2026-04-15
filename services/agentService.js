@@ -1,6 +1,14 @@
 const Agent = require('../models/Agent');
 const { invalidateAgentContext } = require('./agentContextCache');
 
+async function listAgents() {
+  return Agent.findAll();
+}
+
+async function getAgentById(agentId) {
+  return Agent.findByAgentId(agentId);
+}
+
 async function createAgent(agentData) {
   const agent = await Agent.create(agentData);
 
@@ -21,7 +29,20 @@ async function updateAgentById(agentId, updates) {
   return agent;
 }
 
+async function deleteAgentById(agentId) {
+  const result = await Agent.deleteByAgentId(agentId);
+
+  if (result && result.agent_id) {
+    invalidateAgentContext(result.agent_id);
+  }
+
+  return result;
+}
+
 module.exports = {
+  listAgents,
+  getAgentById,
   createAgent,
-  updateAgentById
+  updateAgentById,
+  deleteAgentById
 };

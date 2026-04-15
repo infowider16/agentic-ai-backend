@@ -19,6 +19,14 @@ const LeadSubmission = {
       id: result.insertId,
       ...submission
     };
+  },
+  async deleteByAgentId(agentId, connection = pool) {
+    const [result] = await connection.query(
+      'DELETE FROM lead_submissions WHERE agent_id = ?',
+      [agentId]
+    );
+
+    return result.affectedRows || 0;
   }
 };
 

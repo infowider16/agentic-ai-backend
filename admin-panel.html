@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>My AI Agents | AgenticAI</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --surface: #ffffff;
+      --surface-soft: #f8fafc;
+      --surface-muted: #eef3fb;
+      --border: #e3e8f0;
+      --text: #18212f;
+      --muted: #6d7a8c;
+      --sidebar: #162436;
+      --brand: #2f7df6;
+      --brand-dark: #1d65d8;
+      --success-bg: #e8f8ee;
+      --success-text: #2a8a52;
+      --warning-bg: #fff6db;
+      --warning-text: #9a7700;
+      --danger: #c83f3f;
+      --danger-bg: #fff0f0;
+      --shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+      --radius: 16px;
+      --code-bg: #0f1724;
+      --code-text: #d7e5ff;
+      --code-tag: #7cc4ff;
+      --code-attr: #ffd166;
+      --code-value: #a7f3d0;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--bs-body-font-family, "Segoe UI", Tahoma, Geneva, Verdana, sans-serif);
+    }
+
+    body.modal-open {
+      overflow: hidden;
+    }
+
+    .layout {
+      min-height: 100vh;
+      display: block;
+    }
+
+    .content {
+      padding: clamp(16px, 2.4vw, 28px);
+    }
+
+    .content-shell {
+      max-width: 100%;
+    }
+
+    .page-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 18px;
+      margin-bottom: 22px;
+    }
+
+    .page-title {
+      margin: 0;
+      font-size: 32px;
+      font-weight: 700;
+    }
+
+    .page-subtitle {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+
+    .primary-button,
+    .secondary-button,
+    .ghost-button,
+    .icon-button,
+    .link-button,
+    .page-button {
+      transition: background-color 140ms ease, transform 140ms ease, opacity 140ms ease;
+    }
+
+    .primary-button:hover,
+    .secondary-button:hover,
+    .ghost-button:hover,
+    .icon-button:hover,
+    .link-button:hover,
+    .page-button:hover {
+      transform: translateY(-1px);
+    }
+
+    .primary-button {
+      font-weight: 600;
+    }
+
+    .primary-button:hover {
+      background: var(--brand-dark);
+    }
+
+    .secondary-button {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .ghost-button,
+    .page-button {
+      font-weight: 600;
+    }
+
+    .page-button.active {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    .page-button:disabled,
+    .primary-button:disabled,
+    .secondary-button:disabled,
+    .ghost-button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .icon-button {
+      width: 36px;
+      height: 36px;
+      font-size: 18px;
+      line-height: 1;
+      display: grid;
+      place-items: center;
+      border-radius: 10px;
+    }
+
+    .link-button {
+      background: transparent;
+      color: var(--brand-dark);
+      font-weight: 600;
+    }
+
+    .filters-bar {
+      padding: 16px 20px;
+      display: grid;
+      gap: 12px;
+      grid-template-columns: minmax(220px, 1.3fr) repeat(2, minmax(170px, 180px)) auto;
+      align-items: end;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-field {
+      display: grid;
+      gap: 6px;
+      font-size: 13px;
+      color: var(--muted);
+      margin: 0;
+    }
+
+    .search-input,
+    .filter-select,
+    .modal input,
+    .modal select,
+    .modal textarea {
+      width: 100%;
+      padding: 12px 13px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      color: var(--text);
+      font: inherit;
+    }
+
+    .search-input,
+    .filter-select {
+      min-height: 46px;
+    }
+
+    .search-input:focus,
+    .filter-select:focus,
+    .modal input:focus,
+    .modal select:focus,
+    .modal textarea:focus {
+      outline: none;
+      border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(47, 125, 246, 0.12);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 1280px;
+    }
+
+    th,
+    td {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: var(--surface-soft);
+    }
+
+    .agent-name {
+      font-weight: 700;
+    }
+
+    .agent-subtext {
+      margin-top: 4px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+
+    .status-tag {
+      display: inline-flex;
+      align-items: center;
+      padding: 5px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+      width: fit-content;
+    }
+
+    .status-tag.success {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    .status-tag.warning {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+    }
+
+    .toggle-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .toggle-button {
+      position: relative;
+      width: 48px;
+      height: 28px;
+      border: 0;
+      border-radius: 999px;
+      background: #cdd6e3;
+      cursor: pointer;
+      transition: background-color 140ms ease;
+      padding: 0;
+    }
+
+    .toggle-button.active {
+      background: #4cc074;
+    }
+
+    .toggle-knob {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform 140ms ease;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.2);
+    }
+
+    .toggle-button.active .toggle-knob {
+      transform: translateX(20px);
+    }
+
+    .api-key-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .api-key-text {
+      font-family: Consolas, "Courier New", monospace;
+      background: var(--surface-soft);
+      padding: 7px 10px;
+      border-radius: 10px;
+      word-break: break-all;
+      min-width: 130px;
+    }
+
+    .snippet-cell {
+      min-width: 420px;
+    }
+
+    .code-preview {
+      margin: 0;
+      padding: 14px;
+      border-radius: 12px;
+      background: var(--code-bg);
+      color: var(--code-text);
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .code-tag {
+      color: var(--code-tag);
+    }
+
+    .code-attr {
+      color: var(--code-attr);
+    }
+
+    .code-value {
+      color: var(--code-value);
+    }
+
+    .snippet-actions {
+      margin-top: 10px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .actions-wrap {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .empty-state {
+      padding: 44px 24px;
+      text-align: center;
+      color: var(--muted);
+      display: grid;
+      gap: 14px;
+      justify-items: center;
+    }
+
+    .empty-state.hidden {
+      display: none;
+    }
+
+    .empty-illustration {
+      width: 96px;
+      height: 96px;
+      border-radius: 24px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #eef4ff, #ffffff);
+      border: 1px solid var(--border);
+      color: var(--brand-dark);
+      font-size: 42px;
+    }
+
+    .empty-title {
+      font-size: 20px;
+      color: var(--text);
+      font-weight: 700;
+    }
+
+    .empty-copy {
+      max-width: 420px;
+      line-height: 1.6;
+    }
+
+    .pagination {
+      padding: 16px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      border-top: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .pagination.hidden {
+      display: none;
+    }
+
+    .pagination-info {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .pagination-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .mobile-cards {
+      display: none;
+      padding: 16px;
+      gap: 14px;
+    }
+
+    .mobile-card {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 14px;
+      background: var(--surface);
+      display: grid;
+      gap: 12px;
+    }
+
+    .mobile-card-row {
+      display: grid;
+      gap: 4px;
+    }
+
+    .mobile-card-label {
+      font-size: 12px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .mobile-card-value {
+      font-size: 14px;
+      word-break: break-word;
+    }
+
+    .mobile-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .agent-modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 16, 27, 0.48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 1000;
+    }
+
+    .agent-modal-backdrop.open {
+      display: flex;
+    }
+
+    .agent-modal {
+      width: min(560px, 100%);
+      max-height: min(92vh, 860px);
+      background: var(--surface);
+      border-radius: 20px;
+      box-shadow: 0 28px 70px rgba(15, 23, 42, 0.2);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .agent-modal-panel {
+      border: 0;
+      box-shadow: none;
+      border-radius: 20px;
+    }
+
+    .agent-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 20px 20px 0;
+    }
+
+    .agent-modal-title {
+      margin: 0;
+      font-size: 22px;
+      font-weight: 700;
+    }
+
+    .agent-modal-copy {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .agent-modal form {
+      padding: 20px;
+      display: grid;
+      gap: 14px;
+      overflow-y: auto;
+    }
+
+    .field-hint {
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .message {
+      margin: 0 20px 20px;
+      padding: 12px 14px;
+      border-radius: 10px;
+      display: none;
+      font-size: 14px;
+    }
+
+    .message.visible {
+      display: block;
+    }
+
+    .message.success {
+      background: var(--success-bg);
+      color: var(--success-text);
+    }
+
+    .message.error {
+      background: var(--danger-bg);
+      color: var(--danger);
+    }
+
+    .knowledge-base-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      background: var(--surface-muted);
+      color: var(--text);
+      white-space: nowrap;
+    }
+
+    .knowledge-base-pill.missing {
+      background: var(--warning-bg);
+      color: var(--warning-text);
+    }
+
+    .modal-loader {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.78);
+      backdrop-filter: blur(2px);
+      z-index: 2;
+    }
+
+    .modal-loader.visible {
+      display: flex;
+    }
+
+    .modal-loader-card {
+      min-width: min(320px, calc(100% - 32px));
+      padding: 18px 20px;
+      border-radius: 16px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      box-shadow: var(--shadow);
+      display: grid;
+      gap: 12px;
+      justify-items: center;
+      text-align: center;
+    }
+
+    .modal-loader-copy {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .field-hidden {
+      display: none;
+    }
+
+    .knowledge-base-textarea {
+      min-height: 220px;
+      resize: vertical;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 1080px) {
+      .filters-bar {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+    }
+
+    @media (max-width: 900px) {
+      .filters-bar {
+        grid-template-columns: 1fr;
+      }
+
+      .page-title {
+        font-size: 28px;
+      }
+
+      .table-wrap {
+        display: none;
+      }
+
+      .mobile-cards {
+        display: grid;
+      }
+    }
+
+    @media (max-width: 780px) {
+      .content {
+        padding: 16px;
+      }
+
+      .page-header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .pagination {
+        padding-top: 0;
+      }
+
+      .form-actions {
+        flex-direction: column;
+      }
+
+      .primary-button,
+      .secondary-button,
+      .ghost-button {
+        width: 100%;
+      }
+
+      .snippet-actions,
+      .mobile-actions,
+      .actions-wrap {
+        justify-content: stretch;
+      }
+
+      .agent-modal-backdrop {
+        padding: 12px;
+        align-items: flex-end;
+      }
+
+      .agent-modal,
+      .agent-modal-panel {
+        width: 100%;
+        max-height: 88vh;
+        border-radius: 20px 20px 0 0;
+      }
+
+      .agent-modal-header {
+        padding: 18px 16px 0;
+      }
+
+      .agent-modal form {
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .page-title {
+        font-size: 24px;
+      }
+
+      th,
+      td {
+        padding: 12px 14px;
+      }
+
+      .pagination {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .pagination-actions {
+        justify-content: space-between;
+      }
+
+      .page-button {
+        flex: 1 1 auto;
+      }
+    }
+  </style>
+</head>
+<body class="bg-body-tertiary">
+  <div class="layout">
+    <main class="content">
+      <div class="content-shell container-fluid px-0">
+      <section class="page-header">
+        <div>
+          <h1 class="page-title">My AI Agents</h1>
+          <p class="page-subtitle">Manage and deploy AI agents across tenant websites from one simple panel.</p>
+        </div>
+        <button class="primary-button btn btn-primary" id="openAgentModal" type="button">
+          <i class="bi bi-plus-lg me-2"></i>Create New Agent
+        </button>
+      </section>
+
+      <section class="panel card border-0">
+        <div class="filters-bar">
+          <label class="filter-field">
+            Search
+            <input id="agentSearch" class="search-input form-control" type="search" placeholder="Search agent name, website, or model">
+          </label>
+          <label class="filter-field">
+            Status
+            <select id="statusFilter" class="filter-select form-select">
+              <option value="all">All Status</option>
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </label>
+          <button class="ghost-button btn btn-light" id="clearFiltersButton" type="button">Clear Filters</button>
+        </div>
+
+        <div id="emptyState" class="empty-state hidden">
+          <div class="empty-illustration">◫</div>
+          <div class="empty-title">No Agents Found</div>
+          <div class="empty-copy" id="emptyStateCopy">Create your first agent to start managing AI widgets across tenant websites.</div>
+          <button class="primary-button btn btn-primary" id="emptyStateButton" type="button">Create Your First Agent</button>
+        </div>
+
+        <div class="table-wrap table-responsive">
+          <table class="table align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Agent</th>
+                <th>Target Website</th>
+                <th>Status</th>
+                <th>Enable / Disable</th>
+                <th>Model Type</th>
+                <th>Knowledge Base</th>
+                <th>API Key</th>
+                <th>Script Snippet</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="agentsTableBody">
+              <tr>
+                <td class="empty" colspan="9">Loading agents...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div id="mobileCards" class="mobile-cards"></div>
+
+        <div id="pagination" class="pagination hidden">
+          <div id="paginationInfo" class="pagination-info"></div>
+          <div id="paginationActions" class="pagination-actions"></div>
+        </div>
+      </section>
+      </div>
+    </main>
+  </div>
+
+  <div class="agent-modal-backdrop" id="agentModalBackdrop" aria-hidden="true">
+    <div class="agent-modal agent-modal-panel" role="dialog" aria-modal="true" aria-labelledby="agentModalTitle">
+      <div class="modal-loader" id="modalLoader" aria-hidden="true">
+        <div class="modal-loader-card">
+          <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+          <div>
+            <div class="fw-semibold">Generating knowledge base</div>
+            <div class="modal-loader-copy" id="modalLoaderCopy">Please wait until the website crawl and transformation process is complete...</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="agent-modal-header">
+        <div>
+          <h2 class="agent-modal-title" id="agentModalTitle">Create Agent</h2>
+          <p class="agent-modal-copy" id="agentModalCopy">Enter website details, choose the model, and save the agent.</p>
+        </div>
+        <button class="icon-button btn btn-light" id="closeAgentModal" type="button" aria-label="Close agent modal"><i class="bi bi-x-lg"></i></button>
+      </div>
+
+      <form id="agentForm">
+        <label>
+          Agent Name
+          <span class="field-hint">Optional. Example: Customer Support</span>
+          <input id="agentName" name="agent_name" class="form-control" type="text" placeholder="Customer Support" maxlength="100">
+        </label>
+
+        <label>
+          Website URL
+          <span class="field-hint" id="websiteHint">Required. Example: https://example.com</span>
+          <input id="websiteUrl" name="website_url" class="form-control" type="url" placeholder="https://example.com" required>
+        </label>
+
+        <label>
+          Model Type
+          <span class="field-hint">Provider is auto-detected from model.</span>
+          <input id="modelName" name="model_name" class="form-control" type="text" placeholder="gemini-1.5-flash or gpt-4.1-mini" required>
+        </label>
+
+        <label>
+          Provider Name
+          <span class="field-hint" id="providerHint">Optional. Leave on auto to detect from model.</span>
+          <input id="providerName" name="provider_name" class="form-control" type="text" list="providerNameOptions" placeholder="auto, gemini, or openai">
+          <datalist id="providerNameOptions">
+            <option value="auto"></option>
+            <option value="gemini"></option>
+            <option value="openai"></option>
+          </datalist>
+        </label>
+
+        <label>
+          API Key
+          <span class="field-hint" id="apiKeyHint">Required. Stored securely on the server.</span>
+          <input id="apiKey" name="api_key" class="form-control" type="text" placeholder="Paste provider API key" required>
+        </label>
+
+        <label id="knowledgeBaseField" class="field-hidden">
+          Knowledge Base
+          <span class="field-hint" id="knowledgeBaseHint">Edit the stored JSON knowledge base for this agent.</span>
+          <textarea id="knowledgeBaseInput" name="knowledge_base" class="form-control knowledge-base-textarea" spellcheck="false" placeholder="{ }"></textarea>
+        </label>
+
+        <div class="form-actions">
+          <button class="ghost-button btn btn-light" id="resetButton" type="button">Reset</button>
+          <button class="primary-button btn btn-primary" id="saveAgentButton" type="submit">Save Agent</button>
+        </div>
+      </form>
+
+      <p id="formMessage" class="message" aria-live="polite"></p>
+    </div>
+  </div>
+
+  <script>
+    const PAGE_SIZE = 10;
+    const LOCAL_STATE_KEY = 'agenticai-admin-ui-state';
+
+    const form = document.getElementById('agentForm');
+    const agentSearch = document.getElementById('agentSearch');
+    const statusFilter = document.getElementById('statusFilter');
+    const clearFiltersButton = document.getElementById('clearFiltersButton');
+    const agentsTableBody = document.getElementById('agentsTableBody');
+    const mobileCards = document.getElementById('mobileCards');
+    const pagination = document.getElementById('pagination');
+    const paginationInfo = document.getElementById('paginationInfo');
+    const paginationActions = document.getElementById('paginationActions');
+    const emptyState = document.getElementById('emptyState');
+    const emptyStateCopy = document.getElementById('emptyStateCopy');
+    const emptyStateButton = document.getElementById('emptyStateButton');
+    const openAgentModal = document.getElementById('openAgentModal');
+    const closeAgentModal = document.getElementById('closeAgentModal');
+    const agentModalBackdrop = document.getElementById('agentModalBackdrop');
+    const agentModalTitle = document.getElementById('agentModalTitle');
+    const agentModalCopy = document.getElementById('agentModalCopy');
+    const websiteUrlInput = document.getElementById('websiteUrl');
+    const modelNameInput = document.getElementById('modelName');
+    const providerNameInput = document.getElementById('providerName');
+    const providerHint = document.getElementById('providerHint');
+    const agentNameInput = document.getElementById('agentName');
+    const apiKeyInput = document.getElementById('apiKey');
+    const apiKeyHint = document.getElementById('apiKeyHint');
+    const knowledgeBaseField = document.getElementById('knowledgeBaseField');
+    const knowledgeBaseInput = document.getElementById('knowledgeBaseInput');
+    const knowledgeBaseHint = document.getElementById('knowledgeBaseHint');
+    const saveAgentButton = document.getElementById('saveAgentButton');
+    const resetButton = document.getElementById('resetButton');
+    const formMessage = document.getElementById('formMessage');
+    const modalLoader = document.getElementById('modalLoader');
+    const modalLoaderCopy = document.getElementById('modalLoaderCopy');
+
+    let agentsState = [];
+    let uiState = loadUiState();
+    let revealedApiKeys = {};
+    let highlightedAgentId = '';
+    let currentPage = 1;
+    let editingAgentId = '';
+    let editFormSnapshot = null;
+    let isModalLoading = false;
+
+    function applyBootstrapButtonStyle(element, variant) {
+      if (!(element instanceof HTMLElement)) {
+        return;
+      }
+
+      element.classList.add('btn');
+      element.classList.remove('btn-primary', 'btn-light', 'btn-outline-primary');
+      element.classList.add(variant);
+    }
+
+    function loadUiState() {
+      try {
+        return JSON.parse(localStorage.getItem(LOCAL_STATE_KEY) || '{}');
+      } catch (error) {
+        return {};
+      }
+    }
+
+    function saveUiState() {
+      localStorage.setItem(LOCAL_STATE_KEY, JSON.stringify(uiState));
+    }
+
+
+    function escapeHtml(value) {
+      return String(value || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function highlightScriptTag(script) {
+      const escaped = escapeHtml(script || '');
+      return escaped
+        .replace(/(&lt;\/?script)/g, '<span class="code-tag">$1</span>')
+        .replace(/(src|data-agent-id|data-agent-name|data-api-base-url)(=)/g, '<span class="code-attr">$1</span>$2')
+        .replace(/&quot;([^&]*)&quot;/g, '<span class="code-value">&quot;$1&quot;</span>');
+    }
+
+    function normalizeAgent(agent) {
+      const state = uiState[agent.agent_id] || {};
+      return Object.assign({}, agent, {
+        is_active: state.is_active !== false,
+        total_chats: Number.isFinite(Number(state.total_chats)) ? Number(state.total_chats) : Number(agent.total_chats || 0)
+      });
+    }
+
+    function setMessage(type, text) {
+      formMessage.className = 'message visible ' + type;
+      formMessage.textContent = text;
+    }
+
+    function clearMessage() {
+      formMessage.className = 'message';
+      formMessage.textContent = '';
+    }
+
+    function setModalLoading(isLoading, message) {
+      isModalLoading = Boolean(isLoading);
+      modalLoader.classList.toggle('visible', isModalLoading);
+      modalLoader.setAttribute('aria-hidden', String(!isModalLoading));
+
+      if (message) {
+        modalLoaderCopy.textContent = message;
+      }
+
+      [agentNameInput, websiteUrlInput, modelNameInput, providerNameInput, apiKeyInput, knowledgeBaseInput, saveAgentButton, resetButton, closeAgentModal].forEach(function(element) {
+        if (element) {
+          element.disabled = isModalLoading;
+        }
+      });
+    }
+
+    function detectProviderFromModel(modelName) {
+      const normalizedModelName = String(modelName || '').trim().toLowerCase();
+
+      if (!normalizedModelName) {
+        return 'auto';
+      }
+
+      if (normalizedModelName.startsWith('gemini')) {
+        return 'gemini';
+      }
+
+      if (normalizedModelName.startsWith('gpt') || normalizedModelName.startsWith('o1') || normalizedModelName.startsWith('o3')) {
+        return 'openai';
+      }
+
+      return 'auto';
+    }
+
+    function syncProviderHint() {
+      const selectedProvider = String(providerNameInput.value || '').trim().toLowerCase();
+
+      if (selectedProvider !== 'auto') {
+        providerHint.textContent = 'Selected provider will be saved for this agent.';
+        return;
+      }
+
+      const detectedProvider = detectProviderFromModel(modelNameInput.value);
+      providerHint.textContent = detectedProvider === 'auto'
+        ? 'Optional. Leave on auto to detect from model.'
+        : 'Auto-detected provider: ' + detectedProvider + '.';
+    }
+
+    function toggleKnowledgeBaseField(isVisible) {
+      knowledgeBaseField.classList.toggle('field-hidden', !isVisible);
+      knowledgeBaseInput.required = false;
+    }
+
+    function captureFormSnapshot() {
+      editFormSnapshot = {
+        agent_name: agentNameInput.value,
+        website_url: websiteUrlInput.value,
+        model_name: modelNameInput.value,
+        provider_name: providerNameInput.value,
+        api_key: apiKeyInput.value,
+        knowledge_base: knowledgeBaseInput.value
+      };
+    }
+
+    function applyFormSnapshot(snapshot) {
+      if (!snapshot) {
+        return;
+      }
+
+      agentNameInput.value = snapshot.agent_name || '';
+      websiteUrlInput.value = snapshot.website_url || '';
+      modelNameInput.value = snapshot.model_name || '';
+      providerNameInput.value = snapshot.provider_name || 'auto';
+      apiKeyInput.value = snapshot.api_key || '';
+      knowledgeBaseInput.value = snapshot.knowledge_base || '';
+      syncProviderHint();
+    }
+
+    function validateWebsiteUrl(value) {
+      try {
+        const parsedUrl = new URL(String(value || '').trim());
+        return /^https?:$/i.test(parsedUrl.protocol);
+      } catch (error) {
+        return false;
+      }
+    }
+
+    function ensureWebsiteValidity() {
+      const isValid = validateWebsiteUrl(websiteUrlInput.value);
+      websiteUrlInput.setCustomValidity(isValid ? '' : 'Please enter a valid http or https URL.');
+      return isValid;
+    }
+
+    function openModal(mode, agent) {
+      clearMessage();
+      form.reset();
+      setModalLoading(false, 'Website crawl aur transform complete hone tak wait karein.');
+      editingAgentId = mode === 'edit' && agent ? agent.agent_id : '';
+      editFormSnapshot = null;
+      providerNameInput.value = 'auto';
+      knowledgeBaseInput.value = '';
+      toggleKnowledgeBaseField(Boolean(editingAgentId));
+      agentModalTitle.textContent = editingAgentId ? 'Edit Agent' : 'Create Agent';
+      agentModalCopy.textContent = editingAgentId
+        ? 'Update agent details, provider, and stored knowledge base.'
+        : 'Enter website details, choose the model, and save the agent.';
+      apiKeyInput.required = !editingAgentId;
+      apiKeyHint.textContent = editingAgentId
+        ? 'Current API key is shown below. Update it if needed.'
+        : 'Required. Stored securely on the server.';
+      saveAgentButton.textContent = editingAgentId ? 'Update Agent' : 'Save Agent';
+
+      if (agent) {
+        agentNameInput.value = agent.agent_name || '';
+        websiteUrlInput.value = agent.website_url || '';
+        modelNameInput.value = agent.model_name || '';
+        providerNameInput.value = agent.provider_name || detectProviderFromModel(agent.model_name);
+        captureFormSnapshot();
+      }
+
+      syncProviderHint();
+
+      agentModalBackdrop.classList.add('open');
+      agentModalBackdrop.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('modal-open');
+      agentNameInput.focus();
+
+      if (editingAgentId) {
+        fetch('/api/agents/' + encodeURIComponent(editingAgentId))
+          .then(function(response) {
+            return response.json().then(function(payload) {
+              if (!response.ok) {
+                throw new Error(payload.error || 'Failed to load agent details');
+              }
+
+              return payload;
+            });
+          })
+          .then(function(payload) {
+            const detailAgent = payload.agent || {};
+
+            providerNameInput.value = detailAgent.provider_name || detectProviderFromModel(detailAgent.model_name);
+            knowledgeBaseInput.value = detailAgent.knowledge_base || '';
+            knowledgeBaseHint.textContent = detailAgent.knowledge_base_configured
+              ? 'Edit the stored JSON knowledge base for this agent.'
+              : 'No knowledge base is stored yet. You can paste valid JSON here.';
+            captureFormSnapshot();
+            syncProviderHint();
+          })
+          .catch(function() {
+            setMessage('error', 'Unable to load full agent details.');
+          });
+
+        fetch('/api/agents/' + encodeURIComponent(editingAgentId) + '/api-key')
+          .then(function(response) {
+            return response.json().then(function(payload) {
+              if (!response.ok) {
+                throw new Error(payload.error || 'Failed to load API key');
+              }
+
+              return payload;
+            });
+          })
+          .then(function(payload) {
+            apiKeyInput.value = payload.api_key || '';
+            captureFormSnapshot();
+
+            if (payload.api_key_unreadable) {
+              apiKeyHint.textContent = payload.message || 'Saved API key could not be decrypted. Enter a new key to replace it.';
+              setMessage('error', payload.message || 'Saved API key could not be decrypted. Enter a new key to replace it.');
+              return;
+            }
+
+            if (payload.api_key_plaintext_legacy) {
+              apiKeyHint.textContent = 'This key was stored in an older plain-text format. Save the form to re-encrypt it.';
+            }
+          })
+          .catch(function() {
+            setMessage('error', 'Unable to load API key for this agent.');
+          });
+      }
+    }
+
+    function closeModal(forceClose) {
+      if (isModalLoading && !forceClose) {
+        return;
+      }
+
+      agentModalBackdrop.classList.remove('open');
+      agentModalBackdrop.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('modal-open');
+      editingAgentId = '';
+      editFormSnapshot = null;
+      form.reset();
+      providerNameInput.value = 'auto';
+      knowledgeBaseInput.value = '';
+      toggleKnowledgeBaseField(false);
+      apiKeyInput.required = true;
+      apiKeyHint.textContent = 'Required. Stored securely on the server.';
+      saveAgentButton.textContent = 'Save Agent';
+      clearMessage();
+      syncProviderHint();
+      setModalLoading(false, 'Website crawl aur transform complete hone tak wait karein.');
+    }
+
+    function getMaskedApiKey(agent) {
+      if (agent.api_key_masked) {
+        return agent.api_key_masked;
+      }
+
+      if (agent.api_key_unreadable) {
+        return 'Configured (cannot decrypt)';
+      }
+
+      return agent.api_key_configured ? '••••••••' : 'Not configured';
+    }
+
+    function getDisplayedApiKey(agent) {
+      return revealedApiKeys[agent.agent_id] || getMaskedApiKey(agent);
+    }
+
+    function buildStatusTag(agent) {
+      return '<span class="status-tag ' + (agent.is_active ? 'success' : 'warning') + '">' + (agent.is_active ? 'Active' : 'Inactive') + '</span>';
+    }
+
+    function buildStatusToggle(agent) {
+      return '<div class="toggle-wrap">' +
+        '<button class="toggle-button ' + (agent.is_active ? 'active' : '') + '" type="button" data-toggle-status="' + escapeHtml(agent.agent_id) + '" aria-pressed="' + String(agent.is_active) + '">' +
+          '<span class="toggle-knob"></span>' +
+        '</button>' +
+        '<span>' + (agent.is_active ? 'Enabled' : 'Disabled') + '</span>' +
+      '</div>';
+    }
+
+    function buildApiKeyCell(agent) {
+      const isRevealed = Boolean(revealedApiKeys[agent.agent_id]);
+      return '<div class="api-key-wrap">' +
+        '<span class="api-key-text">' + escapeHtml(getDisplayedApiKey(agent)) + '</span>' +
+        '<button class="icon-button btn btn-light" type="button" data-toggle-api-key="' + escapeHtml(agent.agent_id) + '" aria-label="' + (isRevealed ? 'Hide API key' : 'Show API key') + '"><i class="bi ' + (isRevealed ? 'bi-eye-slash' : 'bi-eye') + '"></i></button>' +
+      '</div>';
+    }
+
+    function buildKnowledgeBaseCell(agent) {
+      const hasKnowledgeBase = Boolean(agent.knowledge_base_configured);
+      const label = hasKnowledgeBase
+        ? 'Ready' + (agent.knowledge_base_items ? ' (' + agent.knowledge_base_items + ' chunks)' : '')
+        : 'Missing';
+
+      return '<span class="knowledge-base-pill ' + (hasKnowledgeBase ? '' : 'missing') + '">' + escapeHtml(label) + '</span>';
+    }
+
+    function buildSnippetBlock(agent) {
+      return '<div>' +
+        '<pre class="code-preview">' + highlightScriptTag(agent.script_tag || '') + '</pre>' +
+        '<div class="snippet-actions">' +
+          '<button class="secondary-button btn btn-outline-primary" type="button" data-copy-script="' + escapeHtml(agent.agent_id) + '"><i class="bi bi-clipboard me-2"></i>Copy to Clipboard</button>' +
+        '</div>' +
+      '</div>';
+    }
+
+    function buildActions(agent) {
+      return '<div class="actions-wrap">' +
+        '<button class="link-button btn btn-link p-0 text-decoration-none" type="button" data-edit-agent="' + escapeHtml(agent.agent_id) + '"><i class="bi bi-pencil-square me-1"></i>Edit</button>' +
+        '<button class="link-button btn btn-link p-0 text-decoration-none text-danger" type="button" data-delete-agent="' + escapeHtml(agent.agent_id) + '"><i class="bi bi-trash me-1"></i>Delete</button>' +
+      '</div>';
+    }
+
+    function buildTableRow(agent) {
+      const isHighlighted = highlightedAgentId === agent.agent_id;
+      return '<tr>' +
+        '<td>' +
+          '<div class="agent-name">' + escapeHtml(agent.agent_name) + '</div>' +
+          '<div class="agent-subtext">' + escapeHtml(agent.agent_id) + (isHighlighted ? ' • updated' : '') + '</div>' +
+        '</td>' +
+        '<td>' + escapeHtml(agent.website_url) + '</td>' +
+        '<td>' + buildStatusTag(agent) + '</td>' +
+        '<td>' + buildStatusToggle(agent) + '</td>' +
+        '<td>' + escapeHtml(agent.model_name) + '</td>' +
+        '<td>' + buildKnowledgeBaseCell(agent) + '</td>' +
+        '<td>' + buildApiKeyCell(agent) + '</td>' +
+        '<td class="snippet-cell">' + buildSnippetBlock(agent) + '</td>' +
+        '<td>' + buildActions(agent) + '</td>' +
+      '</tr>';
+    }
+
+    function buildMobileCard(agent) {
+      const isHighlighted = highlightedAgentId === agent.agent_id;
+      return '<article class="mobile-card">' +
+        '<div class="mobile-card-row">' +
+          '<div class="agent-name">' + escapeHtml(agent.agent_name) + '</div>' +
+          '<div class="agent-subtext">' + escapeHtml(agent.agent_id) + (isHighlighted ? ' • updated' : '') + '</div>' +
+        '</div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Website</div><div class="mobile-card-value">' + escapeHtml(agent.website_url) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Model</div><div class="mobile-card-value">' + escapeHtml(agent.model_name) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Knowledge Base</div><div class="mobile-card-value">' + buildKnowledgeBaseCell(agent) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Status</div><div class="mobile-card-value">' + buildStatusTag(agent) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Enable / Disable</div><div class="mobile-card-value">' + buildStatusToggle(agent) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">API Key</div><div class="mobile-card-value">' + buildApiKeyCell(agent) + '</div></div>' +
+        '<div class="mobile-card-row"><div class="mobile-card-label">Script Snippet</div><div class="mobile-card-value">' + buildSnippetBlock(agent) + '</div></div>' +
+        '<div class="mobile-actions">' + buildActions(agent) + '</div>' +
+      '</article>';
+    }
+
+    function getFilteredAgents() {
+      const query = String(agentSearch.value || '').trim().toLowerCase();
+      const selectedStatus = statusFilter.value;
+
+      return agentsState.filter(function(agent) {
+        const matchesQuery = !query || [agent.agent_name, agent.agent_id, agent.website_url, agent.model_name, agent.provider_name]
+          .join(' ')
+          .toLowerCase()
+          .includes(query);
+        const matchesStatus = selectedStatus === 'all' || (selectedStatus === 'active' ? agent.is_active : !agent.is_active);
+
+        return matchesQuery && matchesStatus;
+      });
+    }
+
+    function getPaginatedAgents(agents) {
+      const totalPages = Math.max(1, Math.ceil(agents.length / PAGE_SIZE));
+      currentPage = Math.min(currentPage, totalPages);
+      const startIndex = (currentPage - 1) * PAGE_SIZE;
+      return {
+        totalPages,
+        currentPage,
+        items: agents.slice(startIndex, startIndex + PAGE_SIZE),
+        startIndex
+      };
+    }
+
+    function renderEmptyState(hasAgents, filteredCount) {
+      const showEmpty = !hasAgents || filteredCount === 0;
+      emptyState.classList.toggle('hidden', !showEmpty);
+
+      if (!showEmpty) {
+        return;
+      }
+
+      if (!hasAgents) {
+        emptyStateCopy.textContent = 'Create your first agent to start managing AI widgets across tenant websites.';
+        emptyStateButton.textContent = 'Create Your First Agent';
+      } else {
+        emptyStateCopy.textContent = 'No agents match the current filters. Adjust filters or clear them to see more results.';
+        emptyStateButton.textContent = 'Clear Filters';
+      }
+    }
+
+    function renderPagination(totalItems, totalPages, current) {
+      const shouldShow = totalItems > PAGE_SIZE;
+      pagination.classList.toggle('hidden', !shouldShow);
+
+      if (!shouldShow) {
+        return;
+      }
+
+      const startItem = (current - 1) * PAGE_SIZE + 1;
+      const endItem = Math.min(current * PAGE_SIZE, totalItems);
+      paginationInfo.textContent = 'Showing ' + startItem + ' to ' + endItem + ' of ' + totalItems + ' agents';
+
+      const buttons = [];
+      buttons.push('<button class="page-button" type="button" data-page="prev" ' + (current === 1 ? 'disabled' : '') + '>Prev</button>');
+
+      for (let page = 1; page <= totalPages; page += 1) {
+        buttons.push('<button class="page-button ' + (page === current ? 'active' : '') + '" type="button" data-page="' + page + '">' + page + '</button>');
+      }
+
+      buttons.push('<button class="page-button" type="button" data-page="next" ' + (current === totalPages ? 'disabled' : '') + '>Next</button>');
+      paginationActions.innerHTML = buttons.join('');
+    }
+
+    function renderAgents() {
+      const filteredAgents = getFilteredAgents();
+      const paginated = getPaginatedAgents(filteredAgents);
+
+      renderEmptyState(agentsState.length > 0, filteredAgents.length);
+
+      if (!filteredAgents.length) {
+        agentsTableBody.innerHTML = '<tr><td class="empty" colspan="9">No matching agents found.</td></tr>';
+        mobileCards.innerHTML = '';
+        renderPagination(0, 1, 1);
+        return;
+      }
+
+      agentsTableBody.innerHTML = paginated.items.map(buildTableRow).join('');
+      mobileCards.innerHTML = paginated.items.map(buildMobileCard).join('');
+      renderPagination(filteredAgents.length, paginated.totalPages, paginated.currentPage);
+    }
+
+    function findAgent(agentId) {
+      return agentsState.find(function(agent) {
+        return agent.agent_id === agentId;
+      });
+    }
+
+    function updateAgentUiState(agentId, updates) {
+      const current = uiState[agentId] || {};
+      uiState[agentId] = Object.assign({}, current, updates);
+      saveUiState();
+      agentsState = agentsState.map(function(agent) {
+        return agent.agent_id === agentId ? normalizeAgent(agent) : agent;
+      });
+      renderAgents();
+    }
+
+    async function revealApiKey(agentId) {
+      if (revealedApiKeys[agentId]) {
+        delete revealedApiKeys[agentId];
+        renderAgents();
+        return;
+      }
+
+      const response = await fetch('/api/agents/' + encodeURIComponent(agentId) + '/api-key');
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load API key');
+      }
+
+      if (payload.api_key_unreadable) {
+        throw new Error(payload.message || 'Saved API key could not be decrypted with the current configuration.');
+      }
+
+      revealedApiKeys[agentId] = payload.api_key || '';
+      renderAgents();
+    }
+
+    async function copyScriptByAgentId(agentId) {
+      const agent = findAgent(agentId);
+
+      if (!agent || !agent.script_tag) {
+        return;
+      }
+
+      try {
+        await navigator.clipboard.writeText(agent.script_tag);
+      } catch (error) {
+        const textarea = document.createElement('textarea');
+        textarea.value = agent.script_tag;
+        document.body.appendChild(textarea);
+        textarea.focus();
+        textarea.select();
+        try {
+          document.execCommand('copy');
+        } finally {
+          document.body.removeChild(textarea);
+        }
+      }
+    }
+
+    async function loadAgents() {
+      const response = await fetch('/api/agents');
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to load agents');
+      }
+
+      agentsState = (payload.agents || []).map(normalizeAgent);
+      renderAgents();
+    }
+
+    async function deleteAgentById(agentId) {
+      const agent = findAgent(agentId);
+
+      if (!agent) {
+        return;
+      }
+
+      const confirmed = window.confirm('Delete this agent and all related lead submissions?');
+
+      if (!confirmed) {
+        return;
+      }
+
+      const response = await fetch('/api/agents/' + encodeURIComponent(agentId), {
+        method: 'DELETE'
+      });
+      const payload = await response.json();
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to delete agent');
+      }
+
+      if (highlightedAgentId === agentId) {
+        highlightedAgentId = '';
+      }
+
+      delete revealedApiKeys[agentId];
+      await loadAgents();
+      setMessage('success', 'Agent deleted. Removed ' + Number(payload.deleted_lead_submissions || 0) + ' related lead submissions.');
+    }
+
+    async function submitAgent(event) {
+      event.preventDefault();
+      clearMessage();
+
+      if (!ensureWebsiteValidity()) {
+        websiteUrlInput.reportValidity();
+        return;
+      }
+
+      const payload = {
+        agent_name: agentNameInput.value,
+        website_url: websiteUrlInput.value,
+        model_name: modelNameInput.value,
+        provider_name: String(providerNameInput.value || '').trim() || 'auto'
+      };
+
+      if (apiKeyInput.value.trim()) {
+        payload.api_key = apiKeyInput.value;
+      }
+
+      if (editingAgentId) {
+        payload.knowledge_base = knowledgeBaseInput.value;
+      }
+
+      if (!editingAgentId && !payload.api_key) {
+        setMessage('error', 'API key is required when creating a new agent.');
+        apiKeyInput.focus();
+        return;
+      }
+
+      saveAgentButton.disabled = true;
+      saveAgentButton.textContent = editingAgentId ? 'Updating...' : 'Saving...';
+
+      if (!editingAgentId) {
+        setModalLoading(true, 'Website crawl, transform, aur agent creation complete hone tak modal locked rahega.');
+      }
+
+      try {
+        const response = await fetch(editingAgentId ? '/api/agents/' + encodeURIComponent(editingAgentId) : '/api/agents', {
+          method: editingAgentId ? 'PUT' : 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+
+        if (!response.ok) {
+          throw new Error(result.error || 'Failed to save agent');
+        }
+
+        highlightedAgentId = result.agent.agent_id || '';
+        await loadAgents();
+        setModalLoading(false, 'Website crawl aur transform complete hone tak wait karein.');
+        closeModal(true);
+      } catch (error) {
+        setMessage('error', error.message || 'Failed to save agent.');
+      } finally {
+        setModalLoading(false, 'Website crawl aur transform complete hone tak wait karein.');
+        saveAgentButton.disabled = false;
+        saveAgentButton.textContent = editingAgentId ? 'Update Agent' : 'Save Agent';
+      }
+    }
+
+    openAgentModal.addEventListener('click', function() {
+      openModal('create');
+    });
+
+    emptyStateButton.addEventListener('click', function() {
+      if (agentsState.length === 0) {
+        openModal('create');
+        return;
+      }
+
+      agentSearch.value = '';
+      statusFilter.value = 'all';
+      currentPage = 1;
+      renderAgents();
+    });
+
+    closeAgentModal.addEventListener('click', closeModal);
+
+    agentModalBackdrop.addEventListener('click', function(event) {
+      if (event.target === agentModalBackdrop) {
+        closeModal();
+      }
+    });
+
+    document.addEventListener('keydown', function(event) {
+      if (event.key === 'Escape' && agentModalBackdrop.classList.contains('open')) {
+        closeModal();
+      }
+    });
+
+    websiteUrlInput.addEventListener('input', ensureWebsiteValidity);
+    modelNameInput.addEventListener('input', syncProviderHint);
+    providerNameInput.addEventListener('change', syncProviderHint);
+
+    resetButton.addEventListener('click', function() {
+      if (editingAgentId && editFormSnapshot) {
+        applyFormSnapshot(editFormSnapshot);
+      } else {
+        form.reset();
+        providerNameInput.value = 'auto';
+        knowledgeBaseInput.value = '';
+      }
+      clearMessage();
+      if (!editingAgentId) {
+        apiKeyInput.required = true;
+      }
+      syncProviderHint();
+    });
+
+    form.addEventListener('submit', submitAgent);
+
+    agentSearch.addEventListener('input', function() {
+      currentPage = 1;
+      renderAgents();
+    });
+
+    statusFilter.addEventListener('change', function() {
+      currentPage = 1;
+      renderAgents();
+    });
+
+    clearFiltersButton.addEventListener('click', function() {
+      agentSearch.value = '';
+      statusFilter.value = 'all';
+      currentPage = 1;
+      renderAgents();
+    });
+
+    paginationActions.addEventListener('click', function(event) {
+      const target = event.target;
+
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const pageValue = target.getAttribute('data-page');
+
+      if (!pageValue) {
+        return;
+      }
+
+      const filteredAgents = getFilteredAgents();
+      const totalPages = Math.max(1, Math.ceil(filteredAgents.length / PAGE_SIZE));
+
+      if (pageValue === 'prev') {
+        currentPage = Math.max(1, currentPage - 1);
+      } else if (pageValue === 'next') {
+        currentPage = Math.min(totalPages, currentPage + 1);
+      } else {
+        currentPage = Number(pageValue) || 1;
+      }
+
+      renderAgents();
+    });
+
+    function handleAgentActions(event) {
+      const target = event.target;
+
+      if (!(target instanceof HTMLElement)) {
+        return;
+      }
+
+      const actionTarget = target.closest('[data-toggle-status], [data-copy-script], [data-edit-agent], [data-toggle-api-key], [data-delete-agent]');
+
+      if (!(actionTarget instanceof HTMLElement)) {
+        return;
+      }
+
+      const toggleAgentId = actionTarget.getAttribute('data-toggle-status');
+      const copyAgentId = actionTarget.getAttribute('data-copy-script');
+      const editAgentId = actionTarget.getAttribute('data-edit-agent');
+      const apiKeyAgentId = actionTarget.getAttribute('data-toggle-api-key');
+      const deleteAgentId = actionTarget.getAttribute('data-delete-agent');
+
+      if (toggleAgentId) {
+        const agent = findAgent(toggleAgentId);
+
+        if (!agent) {
+          return;
+        }
+
+        updateAgentUiState(toggleAgentId, {
+          is_active: !agent.is_active,
+          total_chats: agent.total_chats
+        });
+        return;
+      }
+
+      if (copyAgentId) {
+        copyScriptByAgentId(copyAgentId);
+        return;
+      }
+
+      if (editAgentId) {
+        const agent = findAgent(editAgentId);
+
+        if (!agent) {
+          return;
+        }
+
+        openModal('edit', agent);
+        return;
+      }
+
+      if (apiKeyAgentId) {
+        revealApiKey(apiKeyAgentId).catch(function() {
+          setMessage('error', 'Saved API key could not be revealed. It may need to be re-entered.');
+        });
+        return;
+      }
+
+      if (deleteAgentId) {
+        deleteAgentById(deleteAgentId).catch(function(error) {
+          setMessage('error', error.message || 'Failed to delete agent.');
+        });
+      }
+    }
+
+    agentsTableBody.addEventListener('click', handleAgentActions);
+    mobileCards.addEventListener('click', handleAgentActions);
+
+    loadAgents().catch(function() {
+      agentsTableBody.innerHTML = '<tr><td class="empty" colspan="9">Failed to load agents.</td></tr>';
+      mobileCards.innerHTML = '';
+      renderEmptyState(false, 0);
+    });
+  </script>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

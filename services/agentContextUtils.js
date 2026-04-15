@@ -1,5 +1,3 @@
-const { decrypt } = require('../utils/encrypt');
-
 const OPENAI_DEFAULT_MODEL = 'gpt-4o-mini';
 const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || process.env.GEMINI_TEST_MODEL || 'gemini-2.0-flash';
 
@@ -75,11 +73,7 @@ function getAgentApiKey(agent) {
     return String(process.env.GEMINI_API_KEY || process.env.OPENAI_API_KEY || '').trim();
   }
 
-  try {
-    return decrypt(agent.api_key);
-  } catch (error) {
-    return String(agent.api_key).trim();
-  }
+  return String(agent.api_key).trim();
 }
 
 function resolveModelConfig(agent, apiKey) {

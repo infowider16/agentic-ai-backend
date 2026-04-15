@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const chatRoutes = require('./routes/chat');
+const agentRoutes = require('./routes/agents');
 const knowledgeBaseRoutes = require('./routes/knowledgeBase');
 const leadRoutes = require('./routes/leads');
 require('dotenv').config();
@@ -12,11 +13,16 @@ app.use(express.json());
 app.use(express.static(__dirname));
 
 app.use('/api/chat', chatRoutes);
+app.use('/api/agents', agentRoutes);
 app.use('/api/knowledge-base', knowledgeBaseRoutes);
 app.use('/api/leads', leadRoutes);
 
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'test-widget.html'));
+});
+
+app.get('/admin', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin-panel.html'));
 });
 
 const PORT = process.env.PORT || 3000;

@@ -1,6 +1,14 @@
 const pool = require('../db');
+const LeadSubmission = require('./LeadSubmission');
 
 const Agent = {
+  async findAll() {
+    const [rows] = await pool.query(
+      'SELECT * FROM agents ORDER BY created_at DESC, id DESC'
+    );
+
+    return rows;
+  },
   async findByAgentId(agentId) {
     const [rows] = await pool.query('SELECT * FROM agents WHERE agent_id = ?', [agentId]);
     return rows[0];
@@ -59,6 +67,36 @@ const Agent = {
     );
 
     return this.findByAgentId(agentId);
+  },
+  async deleteByAgentId(agentId) {
+    const connection = await pool.getConnection();
+
+    try {
+      await connection.beginTransaction();
+
+      const existingAgent = await this.findByAgentId(agentId);
+
+      if (!existingAgent) {
+        await connection.rollback();
+        return null;
+      }
+
+      const deletedLeadCount = await LeadSubmission.deleteByAgentId(agentId, connection);
+      const [result] = await connection.query('DELETE FROM agents WHERE agent_id = ?', [agentId]);
+
+      await connection.commit();
+
+      return {
+        agent_id: agentId,
+        deleted: result.affectedRows > 0,
+        deleted_lead_submissions: deletedLeadCount
+      };
+    } catch (error) {
+      await connection.rollback();
+      throw error;
+    } finally {
+      connection.release();
+    }
   },
   // Add more model methods as needed
 };
