@@ -39,7 +39,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: 22
-          source: "controllers,models,routes,services,utils,migration,db.js,server.js,package.json,package-lock.json,widget.js,test-widget.html,README.md"
+          source: "controllers,models,routes,services,utils,migration,db.js,server.js,package.json,package-lock.json,widget.js,test-widget.html,README.md,admin-panel.html"
           target: /home/fuelsmart/agentic.fuelsmart.io
 
       - name: Install production dependencies on server
