@@ -39,7 +39,22 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: 22
-          source: "controllers,models,routes,services,utils,migration,db.js,server.js,package.json,package-lock.json,widget.js,test-widget.html,README.md,admin-panel.html"
+          source: "."
+          ignore:
+            - "node_modules/**"
+            - "*.log"
+            - "*.zip"
+            - "*.tar.gz"
+            - "*.mp4"
+            - "*.avi"
+            - "*.mkv"
+            - "*.iso"
+            - "backup/**"
+            - "uploads/**"
+            - "temp/**"
+            
+          # Exclude files larger than 10MB
+          ignore_by_size: "10MB"
           target: /home/fuelsmart/agentic.fuelsmart.io
 
       - name: Install production dependencies on server
