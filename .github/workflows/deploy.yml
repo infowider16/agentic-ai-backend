@@ -32,6 +32,25 @@ jobs:
           port: 22
           script: mkdir -p "/home/fuelsmart/agentic.fuelsmart.io"
 
+      - name: Create deployment archive
+        run: |
+          find . -type f \
+            ! -path './.git/*' \
+            ! -path './node_modules/*' \
+            ! -path './backup/*' \
+            ! -path './uploads/*' \
+            ! -path './temp/*' \
+            ! -name 'deploy.tar.gz' \
+            ! -name '*.log' \
+            ! -name '*.zip' \
+            ! -name '*.tar.gz' \
+            ! -name '*.mp4' \
+            ! -name '*.avi' \
+            ! -name '*.mkv' \
+            ! -name '*.iso' \
+            ! -size +10M \
+            -print0 | tar --null --files-from=- -czf deploy.tar.gz
+
       - name: Upload project files
         uses: appleboy/scp-action@v0.1.7
         with:
@@ -39,22 +58,7 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: 22
-          source: "."
-          ignore:
-            - "node_modules/**"
-            - "*.log"
-            - "*.zip"
-            - "*.tar.gz"
-            - "*.mp4"
-            - "*.avi"
-            - "*.mkv"
-            - "*.iso"
-            - "backup/**"
-            - "uploads/**"
-            - "temp/**"
-            
-          # Exclude files larger than 10MB
-          ignore_by_size: "11MB"
+          source: "deploy.tar.gz"
           target: /home/fuelsmart/agentic.fuelsmart.io
 
       - name: Install production dependencies on server
@@ -66,4 +70,6 @@ jobs:
           port: 22
           script: |
             cd "/home/fuelsmart/agentic.fuelsmart.io"
+            tar -xzf deploy.tar.gz
+            rm -f deploy.tar.gz
             npm ci --omit=dev
