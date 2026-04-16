@@ -8,6 +8,7 @@ const leadRoutes = require('./routes/leads');
 require('dotenv').config();
 
 const app = express();
+app.set('trust proxy', true);
 app.use(cors());
 app.use(express.json());
 app.use(express.static(__dirname));
