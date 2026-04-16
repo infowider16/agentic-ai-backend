@@ -69,8 +69,30 @@ function escapeHtmlAttribute(value) {
     .replace(/>/g, '&gt;');
 }
 
+function normalizePublicBaseUrl(value) {
+  const rawValue = String(value || '').trim();
+
+  if (!rawValue) {
+    return '';
+  }
+
+  const url = new URL(rawValue);
+
+  if (!/^https?:$/i.test(url.protocol)) {
+    throw new Error('PUBLIC_BASE_URL must use http or https');
+  }
+
+  return url.toString().replace(/\/+$/, '');
+}
+
 function getApiBaseUrl(req) {
-  return req.protocol + '://' + req.get('host');
+  const publicBaseUrl = normalizePublicBaseUrl(process.env.PUBLIC_BASE_URL);
+
+  if (publicBaseUrl) {
+    return publicBaseUrl;
+  }
+
+  return 'https://' + req.get('host');
 }
 
 function buildScriptTag(agent, req) {
