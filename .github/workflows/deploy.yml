@@ -54,7 +54,7 @@ jobs:
             - "temp/**"
             
           # Exclude files larger than 10MB
-          ignore_by_size: "10MB"
+          ignore_by_size: "11MB"
           target: /home/fuelsmart/agentic.fuelsmart.io
 
       - name: Install production dependencies on server
