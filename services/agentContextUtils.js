@@ -1,5 +1,7 @@
 const OPENAI_DEFAULT_MODEL = 'gpt-4o-mini';
 const GEMINI_DEFAULT_MODEL = process.env.GEMINI_DEFAULT_MODEL || process.env.GEMINI_TEST_MODEL || 'gemini-2.0-flash';
+const MAX_SCOPED_KNOWLEDGE_DOCS = Number(process.env.MAX_SCOPED_KNOWLEDGE_DOCS || 6);
+const MAX_SCOPED_KNOWLEDGE_CHARS = Number(process.env.MAX_SCOPED_KNOWLEDGE_CHARS || 12000);
 
 function safeParseKnowledgeBase(knowledgeBase) {
   if (!knowledgeBase) {
@@ -43,7 +45,255 @@ function flattenKnowledgeBase(value, items, prefix = '') {
   });
 }
 
-function buildKnowledgeContext(knowledgeBase) {
+function normalizeSearchText(text) {
+  return String(text || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function tokenizeSearchText(text) {
+  return normalizeSearchText(text)
+    .split(' ')
+    .filter(function(token) {
+      return token.length >= 3;
+    });
+}
+
+function buildExpandedSearchTokens(message) {
+  const normalizedMessage = normalizeSearchText(message);
+  const tokenSet = new Set(tokenizeSearchText(message));
+
+  if (
+    normalizedMessage.includes('terms and conditions') ||
+    normalizedMessage.includes('term and condition') ||
+    normalizedMessage.includes('terms of service') ||
+    normalizedMessage.includes('terms of services') ||
+    tokenSet.has('terms') ||
+    tokenSet.has('term') ||
+    tokenSet.has('conditions') ||
+    tokenSet.has('condition') ||
+    (tokenSet.has('terms') && tokenSet.has('service')) ||
+    (tokenSet.has('terms') && tokenSet.has('services'))
+  ) {
+    ['terms', 'term', 'conditions', 'condition', 'service', 'services', 'liability', 'disclaimer', 'legal'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  if (
+    tokenSet.has('privacy') ||
+    tokenSet.has('policy') ||
+    tokenSet.has('policies') ||
+    tokenSet.has('poicy')
+  ) {
+    ['privacy', 'policy', 'policies', 'poicy', 'data', 'security'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  if (tokenSet.has('refund') || tokenSet.has('billing') || tokenSet.has('subscription')) {
+    ['billing', 'subscription', 'payments', 'cancel'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  return Array.from(tokenSet);
+}
+
+function extractKnowledgeDocuments(knowledgeBase) {
+  if (Array.isArray(knowledgeBase)) {
+    const chunkDocuments = knowledgeBase
+      .map(function(entry, index) {
+        if (!entry || typeof entry !== 'object') {
+          return null;
+        }
+
+        const metadata = entry.metadata && typeof entry.metadata === 'object' ? entry.metadata : {};
+        const title = String(metadata.page_title || entry.title || entry.id || 'Knowledge Base').trim();
+        const sectionTitle = String(metadata.section_title || '').trim();
+        const content = String(entry.content || '').trim();
+        const summary = String(metadata.summary || '').trim();
+        const keywords = Array.isArray(metadata.keywords) ? metadata.keywords.map(String) : [];
+        const sourceUrl = String(metadata.source_url || '').trim();
+        const searchableText = [
+          title,
+          sectionTitle,
+          summary,
+          keywords.join(' '),
+          content,
+          sourceUrl,
+          String(entry.id || '')
+        ].join(' ').trim();
+
+        if (!searchableText) {
+          return null;
+        }
+
+        return {
+          id: String(entry.id || 'knowledge-doc-' + (index + 1)),
+          title,
+          sectionTitle,
+          summary,
+          content,
+          sourceUrl,
+          keywords,
+          searchableText,
+          contentType: String(metadata.content_type || 'general_page').trim()
+        };
+      })
+      .filter(Boolean);
+
+    if (chunkDocuments.length > 0) {
+      return chunkDocuments;
+    }
+  }
+
+  const flattenedEntries = [];
+  flattenKnowledgeBase(knowledgeBase, flattenedEntries);
+
+  return flattenedEntries.map(function(entry, index) {
+    const value = String(entry.value || '').trim();
+
+    return {
+      id: 'knowledge-entry-' + (index + 1),
+      title: String(entry.key || 'Knowledge Base').trim(),
+      sectionTitle: '',
+      summary: value.slice(0, 240),
+      content: value,
+      sourceUrl: '',
+      keywords: tokenizeSearchText(entry.key),
+      searchableText: [entry.key, value].join(' ').trim(),
+      contentType: 'general_page'
+    };
+  }).filter(function(document) {
+    return Boolean(document.searchableText);
+  });
+}
+
+function selectRelevantKnowledgeDocuments(documents, message, history) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return [];
+  }
+
+  const normalizedMessage = normalizeSearchText(message);
+  const expandedTokens = buildExpandedSearchTokens(message);
+  const recentHistory = Array.isArray(history)
+    ? history.slice(-4).map(function(entry) {
+        return entry && entry.content ? String(entry.content) : '';
+      }).join(' ')
+    : '';
+  const historyTokens = tokenizeSearchText(recentHistory);
+
+  const rankedDocuments = documents
+    .map(function(document) {
+      const titleText = normalizeSearchText([document.title, document.sectionTitle].join(' '));
+      const summaryText = normalizeSearchText(document.summary);
+      const contentText = normalizeSearchText(document.content);
+      const searchableText = normalizeSearchText(document.searchableText);
+      const keywordSet = new Set((document.keywords || []).map(function(keyword) {
+        return normalizeSearchText(keyword);
+      }).filter(Boolean));
+      let score = 0;
+
+      if (normalizedMessage && titleText && (titleText.includes(normalizedMessage) || normalizedMessage.includes(titleText))) {
+        score += 12;
+      }
+
+      expandedTokens.forEach(function(token) {
+        if (keywordSet.has(token)) {
+          score += 6;
+          return;
+        }
+
+        if (titleText.includes(token)) {
+          score += 5;
+          return;
+        }
+
+        if (summaryText.includes(token)) {
+          score += 3;
+          return;
+        }
+
+        if (contentText.includes(token) || searchableText.includes(token)) {
+          score += 2;
+        }
+      });
+
+      historyTokens.forEach(function(token) {
+        if (titleText.includes(token) || keywordSet.has(token)) {
+          score += 1;
+        }
+      });
+
+      if ((expandedTokens.includes('terms') || expandedTokens.includes('conditions') || expandedTokens.includes('service') || expandedTokens.includes('services')) && /terms|conditions|service|services|liability|disclaimer/.test(searchableText)) {
+        score += 8;
+      }
+
+      if ((expandedTokens.includes('privacy') || expandedTokens.includes('policy')) && /privacy|policy|data|security/.test(searchableText)) {
+        score += 8;
+      }
+
+      return {
+        document,
+        score
+      };
+    })
+    .filter(function(entry) {
+      return entry.score > 0;
+    })
+    .sort(function(left, right) {
+      return right.score - left.score;
+    });
+
+  return rankedDocuments.slice(0, MAX_SCOPED_KNOWLEDGE_DOCS).map(function(entry) {
+    return entry.document;
+  });
+}
+
+function buildRelevantKnowledgeContext(relevantDocuments) {
+  if (!Array.isArray(relevantDocuments) || relevantDocuments.length === 0) {
+    return 'No relevant knowledge base context was found for this question.';
+  }
+
+  let totalChars = 0;
+  const contextSections = [];
+
+  relevantDocuments.some(function(document, index) {
+    const section = [
+      'Document ' + (index + 1) + ':',
+      'Title: ' + (document.title || 'Knowledge Base'),
+      document.sectionTitle ? 'Section: ' + document.sectionTitle : '',
+      document.sourceUrl ? 'Source URL: ' + document.sourceUrl : '',
+      document.summary ? 'Summary: ' + document.summary : '',
+      'Content: ' + String(document.content || '').trim()
+    ].filter(Boolean).join('\n');
+
+    if (totalChars >= MAX_SCOPED_KNOWLEDGE_CHARS) {
+      return true;
+    }
+
+    const remainingChars = MAX_SCOPED_KNOWLEDGE_CHARS - totalChars;
+    const nextSection = section.length > remainingChars
+      ? section.slice(0, Math.max(0, remainingChars - 30)).trim() + '\n[Context truncated]'
+      : section;
+
+    contextSections.push(nextSection);
+    totalChars += nextSection.length + 2;
+
+    return totalChars >= MAX_SCOPED_KNOWLEDGE_CHARS;
+  });
+
+  return contextSections.join('\n\n');
+}
+
+function buildKnowledgeContext(knowledgeBase, options = {}) {
+  if (Array.isArray(options.relevantDocuments)) {
+    return buildRelevantKnowledgeContext(options.relevantDocuments);
+  }
+
   const serializedKnowledge = JSON.stringify(knowledgeBase, null, 2);
 
   if (!serializedKnowledge || serializedKnowledge === '{}') {
@@ -150,7 +400,7 @@ function resolveModelConfig(agent, apiKey) {
   };
 }
 
-function buildSystemPrompt(agent, knowledgeBase) {
+function buildSystemPrompt(agent, knowledgeBase, options = {}) {
   return [
     `You are ${agent.agent_name}, the AI assistant for ${agent.website_url}.`,
 
@@ -165,6 +415,8 @@ function buildSystemPrompt(agent, knowledgeBase) {
     `5. If the user greets you (hi, hello, hey), respond with a friendly greeting and ask how you can help.`,
     `6. Use the conversation history to understand follow-up questions.`,
     `7. If the user asks something unclear but related to the business, ask one clarifying question.`,
+    `8. Questions about terms and conditions, privacy policy, security, billing, refunds, subscriptions, legal disclaimers, or data usage are in scope when that information exists in the knowledge base. Answer those questions normally from the knowledge base and do not refuse just because the topic mentions privacy, security, policy, or legal terms.`,
+    `9. If the knowledge base contains policy or legal text, you may summarize it in simple language, but do not add anything that is not supported by the knowledge base.`,
 
     `OUT OF SCOPE RULE:`,
 
@@ -181,7 +433,7 @@ function buildSystemPrompt(agent, knowledgeBase) {
 
     `KNOWLEDGE BASE:`,
 
-    buildKnowledgeContext(knowledgeBase)
+    buildKnowledgeContext(knowledgeBase, options)
 
   ].join('\n\n');
 }
@@ -191,6 +443,8 @@ module.exports = {
   GEMINI_DEFAULT_MODEL,
   safeParseKnowledgeBase,
   flattenKnowledgeBase,
+  extractKnowledgeDocuments,
+  selectRelevantKnowledgeDocuments,
   buildKnowledgeContext,
   getAgentApiKey,
   resolveModelConfig,

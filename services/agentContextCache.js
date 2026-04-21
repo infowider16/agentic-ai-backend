@@ -2,6 +2,7 @@ const Agent = require('../models/Agent');
 const {
   safeParseKnowledgeBase,
   flattenKnowledgeBase,
+  extractKnowledgeDocuments,
   getAgentApiKey,
   resolveModelConfig,
   buildSystemPrompt
@@ -21,6 +22,7 @@ function isCacheEntryFresh(entry) {
 function buildAgentContext(agent) {
   const knowledgeBase = safeParseKnowledgeBase(agent.knowledge_base);
   const knowledgeEntries = [];
+  const knowledgeDocuments = extractKnowledgeDocuments(knowledgeBase);
   const apiKey = getAgentApiKey(agent);
 
   flattenKnowledgeBase(knowledgeBase, knowledgeEntries);
@@ -29,6 +31,7 @@ function buildAgentContext(agent) {
     agent,
     knowledgeBase,
     knowledgeEntries,
+    knowledgeDocuments,
     apiKey,
     modelConfig: resolveModelConfig(agent, apiKey),
     systemPrompt: buildSystemPrompt(agent, knowledgeBase)

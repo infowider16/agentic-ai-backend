@@ -2,8 +2,11 @@ const OpenAI = require('openai');
 const { GoogleGenAI } = require('@google/genai');
 const { buildAgentContext } = require('./agentContextCache');
 const {
+  buildSystemPrompt,
+  extractKnowledgeDocuments,
   OPENAI_DEFAULT_MODEL,
-  GEMINI_DEFAULT_MODEL
+  GEMINI_DEFAULT_MODEL,
+  selectRelevantKnowledgeDocuments
 } = require('./agentContextUtils');
 
 const MAX_HISTORY_ITEMS = Number(process.env.CHAT_HISTORY_LIMIT || 20);
@@ -106,6 +109,56 @@ function buildFallbackReply(message, match) {
   }
 
   return buildReplyPayload('Sorry, I could not process that right now. Please try again in a moment.');
+}
+
+function splitIntoSentences(text) {
+  return String(text || '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .split(/(?<=[.!?])\s+/)
+    .map(function(sentence) {
+      return sentence.trim();
+    })
+    .filter(Boolean);
+}
+
+function buildDocumentFallbackReply(document) {
+  if (!document || (!document.content && !document.summary)) {
+    return buildReplyPayload('Sorry, I could not process that right now. Please try again in a moment.');
+  }
+
+  const sentences = splitIntoSentences(document.content || document.summary);
+  const summaryText = sentences.slice(0, 3).join(' ').trim() || String(document.content || document.summary || '').trim();
+
+  return buildReplyPayload(summaryText);
+}
+
+function isUnavailableReply(text) {
+  const normalizedText = normalizeText(text);
+
+  if (!normalizedText) {
+    return false;
+  }
+
+  return [
+    'information not available',
+    'not available in the current knowledge base',
+    'not available in the knowledge base',
+    'i do not have information',
+    'i dont have information',
+    'i do not have enough information',
+    'i dont have enough information',
+    'i do not have the information',
+    'i dont have the information',
+    'do not have that information',
+    'dont have that information',
+    'do not have information about',
+    'dont have information about',
+    'cannot find that information',
+    'could not find that information'
+  ].some(function(pattern) {
+    return normalizedText.includes(pattern);
+  });
 }
 
 function normalizeHistoryEntries(history) {
@@ -357,17 +410,37 @@ async function buildChatReply(params) {
   const message = params.message || '';
   const history = appendCurrentMessage(params.history, message);
   const knowledgeMatch = findKnowledgeMatch(agentContext.knowledgeEntries, message);
+  const knowledgeDocuments = Array.isArray(agentContext.knowledgeDocuments) && agentContext.knowledgeDocuments.length > 0
+    ? agentContext.knowledgeDocuments
+    : extractKnowledgeDocuments(agentContext.knowledgeBase);
+  const relevantDocuments = selectRelevantKnowledgeDocuments(knowledgeDocuments, message, history);
+  const scopedSystemPrompt = buildSystemPrompt(agentContext.agent, agentContext.knowledgeBase, {
+    relevantDocuments
+  });
 
   if (hasAvailableProvider(agentContext)) {
     try {
-      const providerReply = await requestProviderReply(agentContext, history);
+      const providerReply = await requestProviderReply(
+        Object.assign({}, agentContext, {
+          systemPrompt: scopedSystemPrompt
+        }),
+        history
+      );
 
       if (providerReply) {
+        if (isUnavailableReply(providerReply) && relevantDocuments.length > 0) {
+          return buildDocumentFallbackReply(relevantDocuments[0]);
+        }
+
         return buildReplyPayload(providerReply);
       }
     } catch (error) {
       console.error('AI provider request failed:', error.message);
     }
+  }
+
+  if (relevantDocuments.length > 0) {
+    return buildDocumentFallbackReply(relevantDocuments[0]);
   }
 
   return buildFallbackReply(message, knowledgeMatch);
