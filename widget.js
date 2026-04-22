@@ -109,14 +109,14 @@
       .agenticai-chat-bubble-row--agent { justify-content: flex-start; }
       .agenticai-chat-message-avatar { display:flex; align-items:center; justify-content:center; width:30px; height:30px; border-radius:999px; background:#ffffff; color:#5b4ee8; box-shadow:0 8px 18px rgba(15,23,42,0.08); flex-shrink:0; }
       .agenticai-chat-message-avatar svg { width:16px; height:16px; }
-      .agenticai-chat-bubble-body { max-width: 82%; padding: 15px 19px; border-radius: 16px; background: #ffffff; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
+      .agenticai-chat-bubble-body { max-width: 82%; padding: 15px 27px; border-radius: 16px; background: #ffffff; box-shadow: 0 6px 18px rgba(15,23,42,0.06); }
       .agenticai-chat-bubble-row--user .agenticai-chat-bubble-body { background: linear-gradient(135deg, #6366F1 0%, #7C3AED 100%); color: #fff; border-radius: 16px 16px 4px 16px; }
       .agenticai-chat-bubble-row--agent .agenticai-chat-bubble-body { background: rgba(255,255,255,0.94); color: #17212b; border-radius: 16px 16px 16px 4px; }
       .agenticai-chat-meta { margin-bottom: 7px; font-size: 11px; font-weight: 600; color: #6d7890; letter-spacing: 0.01em; }
       .agenticai-chat-bubble-row--user .agenticai-chat-meta { color: rgba(255,255,255,0.78); }
       .agenticai-chat-summary { white-space: pre-line; }
-      .agenticai-chat-list { margin: 8px 0 0; padding-left: 18px; }
-      .agenticai-chat-list li { margin-bottom: 4px; }
+      .agenticai-chat-list { margin: 8px 0 0; padding-left: 18px; word-break: break-word; white-space: pre-line; max-width: 100%; box-sizing: border-box; }
+      .agenticai-chat-list li { margin-bottom: 4px; word-break: break-word; white-space: pre-line; max-width: 100%; box-sizing: border-box; }
       .agenticai-chat-cta { margin-top: 8px; font-weight: 600; }
       .agenticai-lead-form-bubble { max-width: 92% !important; }
       .agenticai-lead-form-title { font-size: 13px; color: #444f6b; margin-bottom: 10px; line-height: 1.5; }
@@ -475,41 +475,78 @@
       meta.textContent = sender;
       bubble.appendChild(meta);
 
+      // Helper for typewriter effect
+      function typeWriterEffect(element, text, cb) {
+        let i = 0;
+        function typeWriter() {
+          if (i <= text.length) {
+            element.textContent = text.slice(0, i);
+            messages.scrollTop = messages.scrollHeight;
+            i++;
+            setTimeout(typeWriter, 18 + Math.random() * 30);
+          } else if (cb) {
+            cb();
+          }
+        }
+        typeWriter();
+      }
+
+      // Compose all blocks as a sequence for animation
+      let blocksToAnimate = [];
       if (hasStructuredBlocks) {
         if (blocks.summary) {
-          const summary = document.createElement('div');
-          summary.className = 'agenticai-chat-summary';
-          summary.textContent = blocks.summary;
-          bubble.appendChild(summary);
+          blocksToAnimate.push({ type: 'summary', value: blocks.summary });
         }
-
         if (blocks.bullets && blocks.bullets.length) {
-          const list = document.createElement('ul');
-          list.className = 'agenticai-chat-list';
           blocks.bullets.forEach(function(item) {
-            const listItem = document.createElement('li');
-            listItem.textContent = item;
-            list.appendChild(listItem);
+            blocksToAnimate.push({ type: 'bullet', value: item });
           });
-          bubble.appendChild(list);
         }
-
         if (blocks.cta) {
-          const cta = document.createElement('div');
-          cta.className = 'agenticai-chat-cta';
-          cta.textContent = blocks.cta;
-          bubble.appendChild(cta);
+          blocksToAnimate.push({ type: 'cta', value: blocks.cta });
         }
       } else if (normalizedText) {
-        const body = document.createElement('span');
-        body.textContent = normalizedText;
-        bubble.appendChild(body);
+        blocksToAnimate.push({ type: 'plain', value: normalizedText });
+      }
+
+      // Render with typewriter effect for all blocks
+      function renderBlocks(index) {
+        if (index >= blocksToAnimate.length) return;
+        const block = blocksToAnimate[index];
+        let el;
+        if (block.type === 'summary') {
+          el = document.createElement('div');
+          el.className = 'agenticai-chat-summary';
+        } else if (block.type === 'bullet') {
+          // For bullets, animate each li separately
+          let ul = bubble.querySelector('ul.agenticai-chat-list');
+          if (!ul) {
+            ul = document.createElement('ul');
+            ul.className = 'agenticai-chat-list';
+            bubble.appendChild(ul);
+          }
+          el = document.createElement('li');
+          ul.appendChild(el);
+        } else if (block.type === 'cta') {
+          el = document.createElement('div');
+          el.className = 'agenticai-chat-cta';
+        } else {
+          el = document.createElement('span');
+        }
+        bubble.appendChild(el);
+        typeWriterEffect(el, block.value, function() {
+          renderBlocks(index + 1);
+        });
       }
 
       row.appendChild(avatar);
       row.appendChild(bubble);
       messages.appendChild(row);
       messages.scrollTop = messages.scrollHeight;
+
+      if (blocksToAnimate.length > 0) {
+        renderBlocks(0);
+      }
     }
   }
 
