@@ -1,0 +1,1 @@
+ALTER TABLE agents ADD COLUMN client_secret_key VARCHAR(128) NULL AFTER script_id;

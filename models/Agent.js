@@ -22,14 +22,16 @@ const Agent = {
       'api_key',
       'model_name',
       'knowledge_base',
-      'script_id'
+      'script_id',
+      'client_secret_key'
     ];
     const values = fields.map(function(field) {
       return agentData[field] !== undefined ? agentData[field] : null;
     });
 
+
     await pool.query(
-      'INSERT INTO agents (agent_id, agent_name, website_url, provider_name, api_key, model_name, knowledge_base, script_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      'INSERT INTO agents (agent_id, agent_name, website_url, provider_name, api_key, model_name, knowledge_base, script_id, client_secret_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
       values
     );
 
@@ -43,7 +45,8 @@ const Agent = {
       'api_key',
       'model_name',
       'knowledge_base',
-      'script_id'
+      'script_id',
+      'client_secret_key'
     ];
     const assignments = [];
     const values = [];

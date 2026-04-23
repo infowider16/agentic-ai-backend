@@ -79,3 +79,52 @@ The response includes:
 	"failedPages": []
 }
 ```
+
+## Secure User Identity Integration (AI Chat Widget)
+
+### 1. Backend: Per-Tenant Secret Key
+- Each agent (tenant) must have a unique `client_secret_key` in the database.
+- Never expose this key to the frontend.
+
+### 2. Host Backend: JWT Generation
+- Host backend generates a JWT for the logged-in user:
+
+```js
+const jwt = require('jsonwebtoken');
+const payload = {
+  user_id: 'unique_id_123',
+  user_name: 'Anish',
+  user_email: 'user@example.com',
+  role: 'admin',
+  iat: Math.floor(Date.now() / 1000)
+};
+const token = jwt.sign(payload, CLIENT_SECRET_KEY, { algorithm: 'HS256', expiresIn: '10m' });
+```
+
+### 3. Widget Snippet (Frontend)
+Embed this in your site:
+```html
+<script>
+  window.AI_Widget_Config = {
+    agentId: "YOUR_AGENT_ID",
+    token: "GENERATED_JWT_TOKEN_FROM_BACKEND"
+  };
+</script>
+<script src="https://cdn.your-saas.com/widget.js" async></script>
+```
+
+### 4. Chat API (Backend)
+- The widget sends the token with each chat request.
+- The backend verifies the token using the agent's `client_secret_key`.
+- If valid, user context is injected into the AI prompt.
+- If missing/invalid, AI operates in Guest User mode.
+
+### 5. Security
+- Always use HTTPS.
+- Use short-lived tokens (e.g., 10 minutes).
+- Never expose secret keys to the frontend.
+
+### 6. Testing
+- Log in as a user, open the widget, and send a message. AI should greet you by name/role.
+- Log out or use incognito (no token): AI should treat you as Guest User.
+- Tamper with the token: Backend should reject and fallback to Guest mode.

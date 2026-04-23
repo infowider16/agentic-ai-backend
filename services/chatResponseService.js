@@ -406,6 +406,7 @@ async function requestProviderReply(agentContext, history) {
 }
 
 async function buildChatReply(params) {
+
   const agentContext = params.agentContext || buildAgentContext(params.agent);
   const message = params.message || '';
   const history = appendCurrentMessage(params.history, message);
@@ -414,9 +415,14 @@ async function buildChatReply(params) {
     ? agentContext.knowledgeDocuments
     : extractKnowledgeDocuments(agentContext.knowledgeBase);
   const relevantDocuments = selectRelevantKnowledgeDocuments(knowledgeDocuments, message, history);
-  const scopedSystemPrompt = buildSystemPrompt(agentContext.agent, agentContext.knowledgeBase, {
-    relevantDocuments
-  });
+
+  // Use userContextPrompt if present, else default system prompt
+  let scopedSystemPrompt = '';
+  if (agentContext.userContextPrompt) {
+    scopedSystemPrompt = agentContext.userContextPrompt + '\n' + buildSystemPrompt(agentContext.agent, agentContext.knowledgeBase, { relevantDocuments });
+  } else {
+    scopedSystemPrompt = buildSystemPrompt(agentContext.agent, agentContext.knowledgeBase, { relevantDocuments });
+  }
 
   if (hasAvailableProvider(agentContext)) {
     try {
