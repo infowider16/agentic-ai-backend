@@ -53,9 +53,26 @@ async function postChat(req, res) {
     }
 
     let userContext = null;
+
+    console.log('Received token:', token, 'length:', token ? token.length : 0);
+    console.log('Agent client_secret_key:', agent.client_secret_key);
     if (token && agent.client_secret_key) {
-      userContext = verifyUserToken(token, agent.client_secret_key);
+      try {
+        userContext = verifyUserToken(token, agent.client_secret_key);
+        if (!userContext) {
+          console.error('JWT verification failed: verifyUserToken returned null');
+        } else {
+          console.log('Decoded userContext:', userContext);
+        }
+      } catch (e) {
+        console.error('JWT verify error (exception):', e);
+      }
+    } else {
+      console.error('Token or client_secret_key missing for JWT verification');
     }
+    console.log('userContext:', userContext);
+
+
 
     // Prepare user context for prompt
     let userPromptContext = '';
@@ -65,14 +82,20 @@ async function postChat(req, res) {
       userPromptContext = `You are talking to a Guest User. Personalize your answers accordingly.`;
     }
 
-    // Get agent context and inject userPromptContext into system prompt
+    // Get agent context
     const agentContext = await getAgentContext(agentId);
     if (!agentContext) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Inject userPromptContext at the start of the system prompt
-    agentContext.systemPrompt = `${userPromptContext}\n\n${agentContext.systemPrompt}`;
+    // Build system prompt with user identity block
+    const { buildSystemPrompt } = require('../services/agentContextUtils');
+    agentContext.systemPrompt = buildSystemPrompt(
+      agentContext.agent,
+      agentContext.knowledgeBase,
+      { userPromptContext }
+    );
+    console.log('Final systemPrompt:', agentContext.systemPrompt);
 
     const reply = await buildChatReply({
       agentContext,

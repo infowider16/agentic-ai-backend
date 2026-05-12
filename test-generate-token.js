@@ -10,5 +10,5 @@ const payload = {
   iat: Math.floor(Date.now() / 1000)
 };
 
-const token = jwt.sign(payload, CLIENT_SECRET_KEY, { algorithm: 'HS256', expiresIn: '10m' });
+const token = jwt.sign(payload, CLIENT_SECRET_KEY, { algorithm: 'HS256', expiresIn: '24h' });
 console.log(token);

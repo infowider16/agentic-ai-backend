@@ -618,6 +618,7 @@ async function crawlWebsiteToKnowledgeBase(startUrl, options) {
 
   try {
     browser = await puppeteer.launch({
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
       headless: settings.headless,
       args: ['--no-sandbox', '--disable-setuid-sandbox']
     });

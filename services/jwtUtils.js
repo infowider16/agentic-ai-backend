@@ -16,8 +16,12 @@ function signUserToken(payload, secret, options = {}) {
  */
 function verifyUserToken(token, secret) {
   try {
-    return jwt.verify(token, secret, { algorithms: ['HS256'] });
+    const version = require('jsonwebtoken/package.json').version;
+    console.log('jsonwebtoken version:', version);
+    const trimmedToken = typeof token === 'string' ? token.trim() : token;
+    return jwt.verify(trimmedToken, secret, { algorithms: ['HS256'] });
   } catch (err) {
+    console.error('JWT verify error:', err);
     return null;
   }
 }

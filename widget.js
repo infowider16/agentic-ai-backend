@@ -405,7 +405,8 @@
           message: msg,
           history: conversationHistory,
           session_id: sessionId,
-          conversation_id: conversationId
+          conversation_id: conversationId,
+          token: (window.AI_Widget_Config && window.AI_Widget_Config.token) ? window.AI_Widget_Config.token : undefined
         })
       })
         .then(function(res) {
