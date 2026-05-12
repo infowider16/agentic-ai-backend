@@ -534,6 +534,7 @@ async function crawlSinglePage(browser, url, settings) {
     return {
       status: 'failed',
       source: url,
+      discoveredLinks: [],
       error
     };
   } finally {
@@ -671,7 +672,7 @@ async function crawlWebsiteToKnowledgeBase(startUrl, options) {
             console.log(`[crawler] skipped ${canonicalSource}: ${result.reason}`);
           }
 
-          result.discoveredLinks.forEach(function(link) {
+          (result.discoveredLinks || []).forEach(function(link) {
             const normalizedLink = normalizeUrl(link, canonicalSource);
 
             if (!normalizedLink) {

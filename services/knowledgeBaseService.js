@@ -50,6 +50,15 @@ async function generateKnowledgeBaseForUrl(startUrl, options = {}) {
       headless: options.headless !== false
     });
 
+    if (!crawlResult.pageCount) {
+      const firstFailedPage = Array.isArray(crawlResult.failedPages) ? crawlResult.failedPages[0] : null;
+      const failureReason = firstFailedPage && firstFailedPage.error
+        ? ` Failed to crawl ${firstFailedPage.source}: ${firstFailedPage.error}`
+        : '';
+
+      throw new Error(`Could not extract any website pages from ${crawlResult.startUrl}.${failureReason}`);
+    }
+
     const transformedResult = await transformKnowledgeBaseFile({
       input: crawlResult.outputFile,
       output: aiKnowledgeBaseFile,
