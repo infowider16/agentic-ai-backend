@@ -390,6 +390,18 @@
         return;
       }
 
+      // Token expiry check
+      var widgetToken = window.AI_Widget_Config && window.AI_Widget_Config.token;
+      if (widgetToken) {
+        try {
+          var payload = JSON.parse(atob(widgetToken.split('.')[1]));
+          if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
+            addAgentMessage(agentName, 'Your session has expired. Please refresh the page to continue.');
+            return;
+          }
+        } catch (e) { /* invalid token format, ignore */ }
+      }
+
       lastUserMessage = msg;
       appendHistory('user', msg);
       addMessage('You', msg);
@@ -415,7 +427,7 @@
         .then(function(data) {
           removeTypingIndicator();
           if (!data || !data.reply) {
-            addAgentMessage(agentName, 'Sorry, I could not process that right now.');
+            addAgentMessage(agentName, data && data.error ? data.error : 'Sorry, I could not process that right now.');
             return;
           }
 

@@ -431,11 +431,13 @@ function buildSystemPrompt(agent, knowledgeBase, options = {}) {
 
     `[LEAD_FORM]`,
 
+    options.userPromptContext ? `USER CONTEXT:\n${options.userPromptContext}` : null,
+
     `KNOWLEDGE BASE:`,
 
     buildKnowledgeContext(knowledgeBase, options)
 
-  ].join('\n\n');
+  ].filter(Boolean).join('\n\n');
 }
 
 module.exports = {

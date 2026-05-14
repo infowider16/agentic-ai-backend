@@ -45,6 +45,10 @@ async function postChat(req, res) {
     return res.status(400).json({ error: 'agent_id and message required' });
   }
 
+  if (normalizedMessage.length > 2000) {
+    return res.status(400).json({ error: 'Message is too long. Please keep it under 2000 characters.' });
+  }
+
   try {
     // Fetch agent to get client_secret_key
     const agent = await Agent.findByAgentId(agentId);
@@ -88,13 +92,8 @@ async function postChat(req, res) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Build system prompt with user identity block
-    const { buildSystemPrompt } = require('../services/agentContextUtils');
-    agentContext.systemPrompt = buildSystemPrompt(
-      agentContext.agent,
-      agentContext.knowledgeBase,
-      { userPromptContext }
-    );
+    // Inject user context so buildChatReply prepends it to the scoped system prompt
+    agentContext.userContextPrompt = userPromptContext;
     console.log('Final systemPrompt:', agentContext.systemPrompt);
 
     const reply = await buildChatReply({
