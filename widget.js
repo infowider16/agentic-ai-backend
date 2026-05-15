@@ -390,14 +390,13 @@
         return;
       }
 
-      // Token expiry check
+      // If token is expired, drop it silently — request will proceed as Guest
       var widgetToken = window.AI_Widget_Config && window.AI_Widget_Config.token;
       if (widgetToken) {
         try {
           var payload = JSON.parse(atob(widgetToken.split('.')[1]));
           if (payload.exp && Math.floor(Date.now() / 1000) > payload.exp) {
-            addAgentMessage(agentName, 'Your session has expired. Please refresh the page to continue.');
-            return;
+            widgetToken = undefined;
           }
         } catch (e) { /* invalid token format, ignore */ }
       }
@@ -418,7 +417,7 @@
           history: conversationHistory,
           session_id: sessionId,
           conversation_id: conversationId,
-          token: (window.AI_Widget_Config && window.AI_Widget_Config.token) ? window.AI_Widget_Config.token : undefined
+          token: widgetToken || undefined
         })
       })
         .then(function(res) {
