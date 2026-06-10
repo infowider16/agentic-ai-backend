@@ -102,6 +102,18 @@ const CONTACT_SECTION_SELECTORS = [
   '[class*="contact"]',
   '[id*="contact"]'
 ];
+const DEFAULT_BROWSER_CANDIDATES = [
+  'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe',
+  'C:\\Program Files\\Microsoft\\Edge\\Application\\msedge.exe',
+  'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe',
+  '/usr/bin/google-chrome',
+  '/usr/bin/google-chrome-stable',
+  '/usr/bin/chromium-browser',
+  '/usr/bin/chromium',
+  '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
+  '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge'
+];
 
 function toPositiveInteger(value, fallbackValue) {
   const parsedValue = Number(value);
@@ -121,6 +133,62 @@ function toNonNegativeInteger(value, fallbackValue) {
   }
 
   return Math.floor(parsedValue);
+}
+
+async function pathExists(targetPath) {
+  if (!targetPath) {
+    return false;
+  }
+
+  try {
+    await fs.access(targetPath);
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+async function resolveBrowserLaunchOptions(headless) {
+  const launchOptions = {
+    headless,
+    args: ['--no-sandbox', '--disable-setuid-sandbox']
+  };
+
+  const configuredPath = normalizeWhitespace(process.env.PUPPETEER_EXECUTABLE_PATH);
+
+  if (configuredPath) {
+    if (await pathExists(configuredPath)) {
+      launchOptions.executablePath = configuredPath;
+      return launchOptions;
+    }
+
+    console.warn(`[crawler] configured browser not found at ${configuredPath}; trying fallbacks`);
+  }
+
+  let managedBrowserPath = '';
+
+  try {
+    managedBrowserPath = puppeteer.executablePath();
+  } catch (error) {
+    console.warn(`[crawler] unable to resolve Puppeteer managed browser: ${error.message}`);
+  }
+
+  if (managedBrowserPath && await pathExists(managedBrowserPath)) {
+    launchOptions.executablePath = managedBrowserPath;
+    return launchOptions;
+  }
+
+  const fallbackBrowserPath = DEFAULT_BROWSER_CANDIDATES.find(function(candidatePath) {
+    return require('fs').existsSync(candidatePath);
+  });
+
+  if (fallbackBrowserPath) {
+    launchOptions.executablePath = fallbackBrowserPath;
+    console.warn(`[crawler] using fallback browser at ${fallbackBrowserPath}`);
+    return launchOptions;
+  }
+
+  return launchOptions;
 }
 
 function normalizeWhitespace(value) {
@@ -618,11 +686,7 @@ async function crawlWebsiteToKnowledgeBase(startUrl, options) {
   console.log(`[crawler] starting crawl for ${settings.rootUrl}`);
 
   try {
-    browser = await puppeteer.launch({
-      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
-      headless: settings.headless,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
-    });
+    browser = await puppeteer.launch(await resolveBrowserLaunchOptions(settings.headless));
 
     while (currentLevel.length > 0 && visitedUrls.size < settings.maxPages) {
       const nextLevel = [];

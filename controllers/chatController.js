@@ -80,24 +80,64 @@ async function postChat(req, res) {
 
     // Prepare user context for prompt
     let userPromptContext = '';
-    if (userContext && userContext.user_name && userContext.role) {
-      userPromptContext = `You are talking to ${userContext.user_name} who is an ${userContext.role} on this platform. Use this information to personalize your answers.`;
+    if (userContext && userContext.user_name) {
+      const contextLines = [];
+
+      contextLines.push(`You are talking to ${userContext.user_name}.`);
+
+      if (userContext.role) {
+        contextLines.push(`Their role on this platform is: ${userContext.role}.`);
+      }
+
+      if (userContext.subscription_plan) {
+        contextLines.push(`Their active subscription plan is: ${userContext.subscription_plan}.`);
+      }
+
+      if (userContext.plan_amount) {
+        contextLines.push(`Their personal billing amount for this plan is: ${userContext.plan_amount}. Note: this is their specific billing amount and may differ from the standard list price shown on the plans page.`);
+      }
+
+      if (userContext.plan_start_date && userContext.plan_end_date) {
+        contextLines.push(`Plan start date: ${userContext.plan_start_date}. Plan end date: ${userContext.plan_end_date}.`);
+      } else if (userContext.plan_start_date) {
+        contextLines.push(`Plan start date: ${userContext.plan_start_date}.`);
+      } else if (userContext.plan_end_date) {
+        contextLines.push(`Plan end date: ${userContext.plan_end_date}.`);
+      }
+
+      if (Array.isArray(userContext.saved_aircraft) && userContext.saved_aircraft.length > 0) {
+        const aircraftList = userContext.saved_aircraft
+          .map(function(a) {
+            return String((a.manufacturer || '') + ' ' + (a.model || '')).trim();
+          })
+          .filter(Boolean)
+          .join(', ');
+        if (aircraftList) {
+          contextLines.push(`Saved aircraft profiles: ${aircraftList}.`);
+        }
+      }
+
+      contextLines.push(`Use this information to give personalized answers about their plan, cancellation, saved aircraft, and calculations. When answering about the user's billing cost use their plan_amount. When answering about standard list prices use the knowledge base plan pricing.`);
+      userPromptContext = contextLines.join(' ');
     } else {
       userPromptContext = `You are talking to a Guest User. Personalize your answers accordingly.`;
     }
 
     // Get agent context
-    const agentContext = await getAgentContext(agentId);
-    if (!agentContext) {
+    const cachedAgentContext = await getAgentContext(agentId);
+    if (!cachedAgentContext) {
       return res.status(404).json({ error: 'Agent not found' });
     }
 
-    // Inject user context so buildChatReply prepends it to the scoped system prompt
-    agentContext.userContextPrompt = userPromptContext;
+    const agentContext = Object.assign({}, cachedAgentContext, {
+      userContextPrompt: userPromptContext
+    });
+
     console.log('Final systemPrompt:', agentContext.systemPrompt);
 
     const reply = await buildChatReply({
       agentContext,
+      userContext,
       message: normalizedMessage,
       history: normalizedHistory,
       sessionId: normalizeIdentifier(sessionId),

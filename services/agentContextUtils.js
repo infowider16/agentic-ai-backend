@@ -94,7 +94,81 @@ function buildExpandedSearchTokens(message) {
   }
 
   if (tokenSet.has('refund') || tokenSet.has('billing') || tokenSet.has('subscription')) {
-    ['billing', 'subscription', 'payments', 'cancel'].forEach(function(token) {
+    ['billing', 'subscription', 'payments', 'cancel', 'cancellation', 'plan'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  if (tokenSet.has('cancel') || tokenSet.has('cancellation') || tokenSet.has('cancell') || tokenSet.has('downgrade')) {
+    ['cancel', 'cancellation', 'subscription', 'billing', 'plan', 'starter', 'professional', 'enterprise'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  if (
+    tokenSet.has('my') ||
+    tokenSet.has('mine') ||
+    tokenSet.has('expire') ||
+    tokenSet.has('expiry') ||
+    tokenSet.has('expiration') ||
+    tokenSet.has('renewal') ||
+    (tokenSet.has('plan') && (tokenSet.has('my') || tokenSet.has('active') || tokenSet.has('current'))) ||
+    (tokenSet.has('aircraft') && (tokenSet.has('my') || tokenSet.has('saved') || tokenSet.has('profile')))
+  ) {
+    ['plan', 'subscription', 'cancel', 'cancellation', 'billing', 'starter', 'professional', 'enterprise', 'aircraft', 'profile', 'expire', 'expiry', 'renewal'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  if (
+    tokenSet.has('tankering') || tokenSet.has('tanker') ||
+    (tokenSet.has('fuel') && (tokenSet.has('option') || tokenSet.has('options') || tokenSet.has('cost') || tokenSet.has('buy') || tokenSet.has('price') || tokenSet.has('prices') || tokenSet.has('planning'))) ||
+    (tokenSet.has('option') && (tokenSet.has('fuel') || tokenSet.has('tankering') || tokenSet.has('tanker') || tokenSet.has('buy') || tokenSet.has('destination') || tokenSet.has('departure')))
+  ) {
+    ['fuel', 'tankering', 'tanker', 'option', 'options', 'results', 'departure', 'destination', 'comparison', 'carry', 'cost', 'ramp', 'savings', 'conversion', 'buy'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  // Platform stats queries — accuracy, availability, aircraft count, calculations generated
+  if (
+    tokenSet.has('accuracy') || tokenSet.has('accurate') ||
+    tokenSet.has('availability') || tokenSet.has('available') ||
+    normalizedMessage.includes('24/7') || normalizedMessage.includes('24 7') ||
+    (tokenSet.has('how') && tokenSet.has('many') && (tokenSet.has('aircraft') || tokenSet.has('calculations'))) ||
+    tokenSet.has('supported') ||
+    (tokenSet.has('many') && tokenSet.has('aircraft')) ||
+    (tokenSet.has('calculations') && (tokenSet.has('generated') || tokenSet.has('many')))
+  ) {
+    ['accuracy', 'available', 'availability', 'supported', 'aircraft', 'calculations', 'generated', '97', '1000', '68'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  // Cost reduction / price spread queries — 33%, $2.50, per route savings
+  if (
+    tokenSet.has('reduction') || tokenSet.has('savings') ||
+    tokenSet.has('percent') || tokenSet.has('percentage') ||
+    tokenSet.has('save') || tokenSet.has('much') ||
+    normalizedMessage.includes('spread') || normalizedMessage.includes('price spread') ||
+    normalizedMessage.includes('cost reduction') || normalizedMessage.includes('33') ||
+    (tokenSet.has('fuel') && (tokenSet.has('reduce') || tokenSet.has('saving') || tokenSet.has('savings')))
+  ) {
+    ['reduction', 'savings', 'cost', 'percent', 'spread', 'route', 'tankering', 'potential', 'price'].forEach(function(token) {
+      tokenSet.add(token);
+    });
+  }
+
+  // 4 factors / decision criteria for tankering
+  if (
+    tokenSet.has('factors') || tokenSet.has('factor') ||
+    tokenSet.has('criteria') || tokenSet.has('criterion') ||
+    tokenSet.has('beneficial') || tokenSet.has('benefit') ||
+    tokenSet.has('makes') || tokenSet.has('sense') ||
+    normalizedMessage.includes('when to tanker') || normalizedMessage.includes('decision') ||
+    normalizedMessage.includes('4 factor') || normalizedMessage.includes('four factor')
+  ) {
+    ['factor', 'factors', 'criteria', 'decision', 'tankering', 'price', 'difference', 'capacity', 'limits', 'cost', 'carry'].forEach(function(token) {
       tokenSet.add(token);
     });
   }
@@ -117,6 +191,15 @@ function extractKnowledgeDocuments(knowledgeBase) {
         const summary = String(metadata.summary || '').trim();
         const keywords = Array.isArray(metadata.keywords) ? metadata.keywords.map(String) : [];
         const sourceUrl = String(metadata.source_url || '').trim();
+        const rawAccessLevel = String(metadata.access_level || metadata.access_type || 'public').trim().toLowerCase();
+        const accessLevel = rawAccessLevel === 'authenticated'
+          ? 'authenticated_only'
+          : rawAccessLevel;
+        const requiredRoles = Array.isArray(metadata.required_role)
+          ? metadata.required_role.map(String)
+          : metadata.user_role
+            ? [String(metadata.user_role)]
+            : [];
         const searchableText = [
           title,
           sectionTitle,
@@ -140,7 +223,9 @@ function extractKnowledgeDocuments(knowledgeBase) {
           sourceUrl,
           keywords,
           searchableText,
-          contentType: String(metadata.content_type || 'general_page').trim()
+          contentType: String(metadata.content_type || 'general_page').trim(),
+          accessLevel,
+          requiredRoles
         };
       })
       .filter(Boolean);
@@ -169,6 +254,35 @@ function extractKnowledgeDocuments(knowledgeBase) {
     };
   }).filter(function(document) {
     return Boolean(document.searchableText);
+  });
+}
+
+function filterDocumentsByAccess(documents, userContext) {
+  if (!Array.isArray(documents) || documents.length === 0) {
+    return [];
+  }
+
+  return documents.filter(function(document) {
+    const accessLevel = String(document.accessLevel || 'public').trim().toLowerCase();
+    const requiredRoles = Array.isArray(document.requiredRoles) ? document.requiredRoles.map(function(role) {
+      return String(role).trim().toLowerCase();
+    }).filter(Boolean) : [];
+    const userId = userContext && userContext.user_id ? String(userContext.user_id).trim() : '';
+    const userRole = userContext && userContext.role ? String(userContext.role).trim().toLowerCase() : '';
+
+    if (!accessLevel || accessLevel === 'public') {
+      return true;
+    }
+
+    if (accessLevel === 'authenticated_only') {
+      return Boolean(userId);
+    }
+
+    if (accessLevel === 'role_restricted') {
+      return Boolean(userRole) && requiredRoles.includes(userRole);
+    }
+
+    return true;
   });
 }
 
@@ -234,6 +348,29 @@ function selectRelevantKnowledgeDocuments(documents, message, history) {
 
       if ((expandedTokens.includes('privacy') || expandedTokens.includes('policy')) && /privacy|policy|data|security/.test(searchableText)) {
         score += 8;
+      }
+
+      if ((expandedTokens.includes('cancel') || expandedTokens.includes('cancellation') || expandedTokens.includes('downgrade')) && /cancel|cancellation|subscription|billing|downgrade/.test(searchableText)) {
+        score += 8;
+      }
+
+      if ((expandedTokens.includes('tankering') || expandedTokens.includes('tanker') || expandedTokens.includes('option') || expandedTokens.includes('options')) && /tankering|tanker|option\s|options|departure|destination|ramp|cost.to.carry/.test(searchableText)) {
+        score += 8;
+      }
+
+      // Platform stats boost — 97.5% accuracy, 24/7, 68+ aircraft, 1000+ calculations
+      if ((expandedTokens.includes('accuracy') || expandedTokens.includes('availability') || expandedTokens.includes('supported') || expandedTokens.includes('1000') || expandedTokens.includes('68')) && /97\.5|24\/7|68 \+|1000 \+|supported aircraft|calculations generated|platform availability/.test(searchableText)) {
+        score += 12;
+      }
+
+      // Cost reduction / price spread boost — 33%, $2.50/Gal
+      if ((expandedTokens.includes('reduction') || expandedTokens.includes('spread') || expandedTokens.includes('percent')) && /33%|33 %|2\.50|reduction|spread|per route/.test(searchableText)) {
+        score += 12;
+      }
+
+      // 4 factors / decision criteria boost
+      if ((expandedTokens.includes('factors') || expandedTokens.includes('criteria') || expandedTokens.includes('beneficial')) && /price difference|cost.to.carry|fuel capacity|operational limits|decision criteria|four key|4 key/.test(searchableText)) {
+        score += 12;
       }
 
       return {
@@ -417,11 +554,15 @@ function buildSystemPrompt(agent, knowledgeBase, options = {}) {
     `7. If the user asks something unclear but related to the business, ask one clarifying question.`,
     `8. Questions about terms and conditions, privacy policy, security, billing, refunds, subscriptions, legal disclaimers, or data usage are in scope when that information exists in the knowledge base. Answer those questions normally from the knowledge base and do not refuse just because the topic mentions privacy, security, policy, or legal terms.`,
     `9. If the knowledge base contains policy or legal text, you may summarize it in simple language, but do not add anything that is not supported by the knowledge base.`,
+    `10. ACCESS CONTROL: Some knowledge base information may be restricted to authenticated users or specific roles. If that restricted content is not present in the provided context, do not reveal or guess it. Politely say: "This information is only available for authenticated users."`,
+
+    `11. USER SUBSCRIPTION CONTEXT: If the USER CONTEXT section below contains subscription_plan, plan start date, plan end date, or saved aircraft profiles, use THAT data directly to answer personal questions like "what plan do I have", "when does my plan expire", "what aircraft do I have saved", or "can I cancel my subscription". Combine this with the knowledge base for complete answers. Never reveal other users' plan information.`,
 
     `OUT OF SCOPE RULE:`,
 
-    `If the user asks something unrelated to ${agent.website_url} or the knowledge base, reply politely: 
-    "I'm sorry, I can only assist with questions related to ${agent.website_url}."`,
+    `If the user asks something completely unrelated to ${agent.website_url} or aviation fuel planning — including jokes, riddles, humor, entertainment, weather, general trivia, general knowledge, news, or any non-aviation topic — reply ONLY with: "I'm sorry, I can only assist with questions related to ${agent.website_url}." Do NOT attempt to answer, do NOT tell jokes even if they are aviation-themed, do NOT engage with the off-topic request in any way.`,
+
+    `IMPORTANT: Aviation-themed jokes or puns still count as OUT OF SCOPE. If the user says "tell me a joke", "make me laugh", "say something funny", or similar, always refuse with the standard out-of-scope reply.`,
 
     `LEAD FORM RULE:`,
 
@@ -446,6 +587,7 @@ module.exports = {
   safeParseKnowledgeBase,
   flattenKnowledgeBase,
   extractKnowledgeDocuments,
+  filterDocumentsByAccess,
   selectRelevantKnowledgeDocuments,
   buildKnowledgeContext,
   getAgentApiKey,

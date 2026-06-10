@@ -4,6 +4,7 @@ const { buildAgentContext } = require('./agentContextCache');
 const {
   buildSystemPrompt,
   extractKnowledgeDocuments,
+  filterDocumentsByAccess,
   OPENAI_DEFAULT_MODEL,
   GEMINI_DEFAULT_MODEL,
   selectRelevantKnowledgeDocuments
@@ -409,12 +410,14 @@ async function buildChatReply(params) {
 
   const agentContext = params.agentContext || buildAgentContext(params.agent);
   const message = params.message || '';
+  const userContext = params.userContext || null;
   const history = appendCurrentMessage(params.history, message);
   const knowledgeMatch = findKnowledgeMatch(agentContext.knowledgeEntries, message);
   const knowledgeDocuments = Array.isArray(agentContext.knowledgeDocuments) && agentContext.knowledgeDocuments.length > 0
     ? agentContext.knowledgeDocuments
     : extractKnowledgeDocuments(agentContext.knowledgeBase);
-  const relevantDocuments = selectRelevantKnowledgeDocuments(knowledgeDocuments, message, history);
+  const accessFilteredDocuments = filterDocumentsByAccess(knowledgeDocuments, userContext);
+  const relevantDocuments = selectRelevantKnowledgeDocuments(accessFilteredDocuments, message, history);
 
   // Use userContextPrompt if present, else default system prompt
   let scopedSystemPrompt = '';
